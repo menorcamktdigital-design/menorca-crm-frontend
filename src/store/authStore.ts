@@ -7,6 +7,17 @@ export interface Usuario {
   nombre: string;
 }
 
+// Cookie que lee src/proxy.ts para proteger rutas en el servidor.
+// Al no haber backend es solo un flag de sesión, no un token verificable.
+const SESSION_COOKIE = "menorca_session";
+
+function setSessionCookie(activa: boolean) {
+  if (typeof document === "undefined") return;
+  document.cookie = activa
+    ? `${SESSION_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`
+    : `${SESSION_COOKIE}=; path=/; max-age=0`;
+}
+
 interface AuthState {
   usuario: Usuario | null;
   hidratado: boolean;
@@ -21,13 +32,23 @@ export const useAuthStore = create<AuthState>()(
       usuario: null,
       hidratado: false,
       setHidratado: (hidratado) => set({ hidratado }),
-      login: (nombre) => set({ usuario: { nombre } }),
-      logout: () => set({ usuario: null }),
+      login: (nombre) => {
+        setSessionCookie(true);
+        set({ usuario: { nombre } });
+      },
+      logout: () => {
+        setSessionCookie(false);
+        set({ usuario: null });
+      },
     }),
     {
       name: "menorca-auth",
       partialize: (s) => ({ usuario: s.usuario }),
-      onRehydrateStorage: () => (state) => state?.setHidratado(true),
+      onRehydrateStorage: () => (state) => {
+        // Sincroniza la cookie con sesiones ya guardadas en localStorage
+        if (state?.usuario) setSessionCookie(true);
+        state?.setHidratado(true);
+      },
     }
   )
 );

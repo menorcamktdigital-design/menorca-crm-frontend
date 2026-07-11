@@ -7,39 +7,40 @@ import FilterChips from "./FilterChips";
 import LeadsTable from "./LeadsTable";
 
 export default function LeadsPanel() {
-  const { data, fetchNextPage, hasNextPage, isFetching } = useContactos();
   const filtroLead = useUIStore((s) => s.filtroLead);
   const setTab = useUIStore((s) => s.setTab);
 
-  const contactos = flatContactos(data?.pages);
-  const leads =
-    filtroLead === "todos"
-      ? contactos
-      : contactos.filter((c) =>
-          filtroLead === "derivado"
-            ? c.estado === "derivado" || c.estado === "recontacto"
-            : c.estado === filtroLead
-        );
+  // El filtro va al servidor (?estado=...): así el scroll infinito
+  // pagina solo lo filtrado en vez de descargar toda la base.
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useContactos(
+    filtroLead === "todos" ? undefined : filtroLead
+  );
 
-  // Scroll infinito sobre el panel
+  const leads = flatContactos(data?.pages);
+
+  // Scroll infinito sobre el panel (root = la sección, que es quien scrollea)
+  const scrollRef = useRef<HTMLElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetching) {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
       },
-      { rootMargin: "300px" }
+      { root: scrollRef.current, rootMargin: "300px" }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetching, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <section className="flex h-full flex-1 flex-col overflow-y-auto bg-gray-100 p-4 md:p-6">
+    <section
+      ref={scrollRef}
+      className="flex h-full flex-1 flex-col overflow-y-auto bg-gray-100 p-4 md:p-6"
+    >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         {/* Botón volver — solo móvil (el sidebar está oculto) */}
         <button
@@ -66,7 +67,7 @@ export default function LeadsPanel() {
       <LeadsTable leads={leads} />
 
       <div ref={sentinelRef} />
-      {isFetching && (
+      {isFetchingNextPage && (
         <p className="py-3 text-center text-xs text-gray-400">Cargando más...</p>
       )}
     </section>

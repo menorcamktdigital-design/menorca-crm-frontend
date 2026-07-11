@@ -10,7 +10,7 @@ export function useConversacion(numero: string | null) {
     enabled: !!numero,
     queryFn: ({ pageParam }) =>
       api
-        .get(`/api/conversacion/${numero}`, { params: { offset: pageParam } })
+        .get(`/api/crm/conversacion/${numero}`, { params: { offset: pageParam } })
         .then((r) => {
           const d = r.data;
           return Array.isArray(d)

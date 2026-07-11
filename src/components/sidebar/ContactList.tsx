@@ -23,8 +23,15 @@ function formatHora(iso: string | null): string {
 }
 
 export default function ContactList() {
-  const { data, fetchNextPage, hasNextPage, isFetching, isLoading, isError } =
-    useContactos();
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+  } = useContactos();
   const busqueda = useUIStore((s) => s.busqueda);
   const numeroActivo = useUIStore((s) => s.numeroActivo);
   const setNumeroActivo = useUIStore((s) => s.setNumeroActivo);
@@ -42,10 +49,10 @@ export default function ContactList() {
 
   // Si la búsqueda no encuentra nada localmente, seguir cargando páginas
   useEffect(() => {
-    if (q && filtrados.length === 0 && hasNextPage && !isFetching) {
+    if (q && filtrados.length === 0 && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [q, filtrados.length, hasNextPage, isFetching, fetchNextPage]);
+  }, [q, filtrados.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Scroll infinito: cargar más al llegar al final
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -54,7 +61,7 @@ export default function ContactList() {
     if (!el) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetching) {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
       },
@@ -62,7 +69,7 @@ export default function ContactList() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetching, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const abrirChat = (c: Contacto) => {
     setNumeroActivo(c.numero);
@@ -122,7 +129,7 @@ export default function ContactList() {
       ))}
 
       <div ref={sentinelRef} />
-      {isFetching && filtrados.length > 0 && (
+      {isFetchingNextPage && filtrados.length > 0 && (
         <p className="py-3 text-center text-xs text-gray-400">Cargando más...</p>
       )}
     </div>

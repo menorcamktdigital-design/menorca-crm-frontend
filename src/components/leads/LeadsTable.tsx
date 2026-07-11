@@ -25,8 +25,10 @@ export default function LeadsTable({ leads }: { leads: Contacto[] }) {
     setTab("chats");
   };
 
+  // shrink-0: si la tabla se encoge como flex item genera scroll interno
+  // y el sentinel del scroll infinito queda siempre visible (carga en cadena)
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+    <div className="shrink-0 overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-gray-200 text-xs text-gray-500 uppercase">

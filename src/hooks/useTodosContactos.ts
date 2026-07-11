@@ -10,7 +10,7 @@ const MAX = 5000;
 async function fetchTodos(): Promise<Contacto[]> {
   const todos: Contacto[] = [];
   for (let offset = 0; offset < MAX; offset += LOTE) {
-    const r = await api.get("/api/contactos", {
+    const r = await api.get("/api/crm/contactos", {
       params: { limit: LOTE, offset },
     });
     const d = r.data;

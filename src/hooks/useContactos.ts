@@ -1,26 +1,31 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
-import type { Contacto } from "@/types";
+import type { Contacto, EstadoLead } from "@/types";
 
 const PAGE = 60;
 
-export function useContactos() {
+// estado se filtra en el servidor (?estado=...) para que el scroll
+// infinito pagine solo lo filtrado en vez de descargar toda la base.
+export function useContactos(estado?: EstadoLead) {
   return useInfiniteQuery<Contacto[]>({
-    queryKey: ["contactos"],
+    queryKey: ["contactos", estado ?? "todos"],
     queryFn: ({ pageParam }) =>
       api
-        .get("/api/contactos", { params: { limit: PAGE, offset: pageParam } })
+        .get("/api/crm/contactos", {
+          params: { limit: PAGE, offset: pageParam, ...(estado && { estado }) },
+        })
         .then((r) => {
           const d = r.data;
           return Array.isArray(d)
             ? d
             : (Object.values(d).find(Array.isArray) as Contacto[]) || [];
         }),
-    getNextPageParam: (lastPage, allPages) => {
+    getNextPageParam: (lastPage, _allPages, lastPageParam) => {
       if (lastPage.length < PAGE) return undefined; // fin
-      return allPages.flat().length;
+      return (lastPageParam as number) + PAGE;
     },
     initialPageParam: 0,
+    refetchInterval: 30_000, // refresco de la lista (no por página nueva)
   });
 }
 

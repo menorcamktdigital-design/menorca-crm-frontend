@@ -1,16 +1,7 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "https://n8n.menorca.pe/api/:path*",
-        // Solo aplica en desarrollo local.
-        // En producción el nginx del server ya redirige /api/ a donde corresponde.
-      },
-    ];
-  },
-};
+// El acceso a la API de n8n va por el route handler /api/crm/[...path],
+// que inyecta el token server-side y exige sesión. Ya no se usan rewrites.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

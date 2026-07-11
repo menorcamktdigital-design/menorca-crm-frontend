@@ -5,6 +5,7 @@ import type { Stats } from "@/types";
 export function useStats() {
   return useQuery<Stats>({
     queryKey: ["stats"],
-    queryFn: () => api.get("/api/stats").then((r) => r.data),
+    queryFn: () => api.get("/api/crm/stats").then((r) => r.data),
+    refetchInterval: 30_000,
   });
 }
