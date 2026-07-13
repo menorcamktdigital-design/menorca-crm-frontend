@@ -10,52 +10,20 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import type { Contacto } from "@/types";
-import { ACCENT, GRID, MUTED, normalizarEstado } from "./chartTheme";
+import { ACCENT, GRID, MUTED } from "./chartTheme";
+import { DIAS_ACTIVIDAD, type DiaActividad } from "./datos";
 import ChartCard from "./ChartCard";
 
-const DIAS = 14;
 const COLOR_LEADS = "#667781"; // total del día (neutro)
 const COLOR_DERIV = ACCENT; // subconjunto derivado (verde marca)
 
-export default function ActividadChart({ contactos }: { contactos: Contacto[] }) {
-  // Serie de los últimos 14 días: leads con última actividad ese día (total)
-  // y cuántos de ellos quedaron derivados. La API solo expone
-  // ultima_actividad como señal temporal (no hay fecha de creación).
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-
-  const dias: {
-    fecha: Date;
-    label: string;
-    leads: number;
-    derivados: number;
-  }[] = [];
-  for (let i = DIAS - 1; i >= 0; i--) {
-    const f = new Date(hoy);
-    f.setDate(hoy.getDate() - i);
-    dias.push({
-      fecha: f,
-      label: f.toLocaleDateString("es-PE", { day: "2-digit", month: "short" }),
-      leads: 0,
-      derivados: 0,
-    });
-  }
-
-  for (const c of contactos) {
-    if (!c.ultima_actividad) continue;
-    const f = new Date(c.ultima_actividad);
-    f.setHours(0, 0, 0, 0);
-    const dia = dias.find((d) => d.fecha.getTime() === f.getTime());
-    if (!dia) continue;
-    dia.leads++;
-    if (normalizarEstado(c.estado) === "derivado") dia.derivados++;
-  }
-
+// Serie de los últimos 14 días: conversaciones con actividad ese día y
+// cuántas quedaron derivadas (ver datos.ts para las dos fuentes posibles)
+export default function ActividadChart({ dias }: { dias: DiaActividad[] }) {
   return (
     <ChartCard
       titulo="Conversaciones vs. derivados por día"
-      subtitulo={`Conversaciones activas en el día y cuántas quedaron derivadas · últimos ${DIAS} días`}
+      subtitulo={`Conversaciones activas en el día y cuántas quedaron derivadas · últimos ${DIAS_ACTIVIDAD} días`}
     >
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">

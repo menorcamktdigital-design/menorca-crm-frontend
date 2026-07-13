@@ -27,6 +27,21 @@ export interface Stats {
   total: number;
   conversando: number;
   derivados: number;
+  visitas: number;
+}
+
+// GET /api/crm/stats/proyectos — conteo por proyecto agrupado en el backend
+// (incluye "Sin proyecto"; los totales llegan como string)
+export interface StatsProyecto {
+  proyecto_interes: string;
+  total: string;
+}
+
+// GET /api/crm/stats/actividad — últimos 14 días calculados en el backend
+export interface StatsActividad {
+  fecha: string;
+  total: string;
+  derivados: string;
 }
 
 export interface Visita {

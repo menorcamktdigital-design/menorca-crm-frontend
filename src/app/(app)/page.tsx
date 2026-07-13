@@ -1,8 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTodosContactos } from "@/hooks/useTodosContactos";
-import { listaProyectos, perteneceAProyecto } from "@/lib/proyectos";
+import { useStats } from "@/hooks/useStats";
+import { useStatsProyectos } from "@/hooks/useStatsProyectos";
+import { useStatsActividad } from "@/hooks/useStatsActividad";
+import { PROYECTOS, SIN_PROYECTO } from "@/lib/proyectos";
+import {
+  actividadDesdeStats,
+  donutDesdeStats,
+  plazasDesdeStats,
+  tilesDesdeStats,
+} from "@/components/dashboard/datos";
 import StatTiles from "@/components/dashboard/StatTiles";
 import EstadoDonut from "@/components/dashboard/EstadoDonut";
 import PlazaBar from "@/components/dashboard/PlazaBar";
@@ -10,20 +18,36 @@ import ActividadChart from "@/components/dashboard/ActividadChart";
 import PlazaFilter from "@/components/dashboard/PlazaFilter";
 import ExportButton from "@/components/dashboard/ExportButton";
 
+// Sin "Otros": el filtro del backend matchea contra el texto del proyecto
+// y no puede expresar "texto no reconocido"
+const PLAZAS = [...PROYECTOS, SIN_PROYECTO];
+
 export default function DashboardPage() {
-  const { data: contactos = [], isLoading, isError } = useTodosContactos();
   const [plaza, setPlaza] = useState("todas");
+  // Con filtro activo, stats y actividad se filtran en el backend
+  // (?proyecto=...); "Leads por plaza" siempre muestra la base completa
+  const proyecto = plaza === "todas" ? undefined : plaza;
 
-  // Lista oficial de proyectos + "Otros" / "Sin proyecto" si aplican
-  const plazas = useMemo(() => listaProyectos(contactos), [contactos]);
+  const stats = useStats(proyecto);
+  const statsProyectos = useStatsProyectos();
+  const statsActividad = useStatsActividad(proyecto);
 
-  const filtrados = useMemo(
-    () =>
-      plaza === "todas"
-        ? contactos
-        : contactos.filter((c) => perteneceAProyecto(c, plaza)),
-    [contactos, plaza]
+  const valores = stats.data && tilesDesdeStats(stats.data);
+  const donut = stats.data ? donutDesdeStats(stats.data) : [];
+  const totalDonut = stats.data?.total ?? 0;
+
+  const conteosPlaza = useMemo(
+    () => plazasDesdeStats(statsProyectos.data ?? []),
+    [statsProyectos.data]
   );
+
+  const dias = useMemo(
+    () => actividadDesdeStats(statsActividad.data ?? []),
+    [statsActividad.data]
+  );
+
+  const isError =
+    stats.isError || statsProyectos.isError || statsActividad.isError;
 
   return (
     <main className="h-full overflow-y-auto p-4 md:p-6">
@@ -37,26 +61,26 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <PlazaFilter plazas={plazas} valor={plaza} onChange={setPlaza} />
-            <ExportButton contactos={filtrados} plaza={plaza} />
+            <PlazaFilter plazas={PLAZAS} valor={plaza} onChange={setPlaza} />
+            <ExportButton plaza={plaza} />
           </div>
         </div>
 
         {isError && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            No se pudo cargar la base de contactos. Reintentando automáticamente...
+            No se pudieron cargar las estadísticas. Reintentando automáticamente...
           </div>
         )}
 
-        <StatTiles contactos={filtrados} cargando={isLoading} />
+        <StatTiles valores={valores} cargando={stats.isLoading} />
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <EstadoDonut contactos={filtrados} />
-          <PlazaBar contactos={filtrados} />
+          <EstadoDonut datos={donut} total={totalDonut} />
+          <PlazaBar conteos={conteosPlaza} seleccionada={proyecto} />
         </div>
 
         <div className="mt-4">
-          <ActividadChart contactos={filtrados} />
+          <ActividadChart dias={dias} />
         </div>
       </div>
     </main>

@@ -1,21 +1,17 @@
-import type { Contacto } from "@/types";
-import { normalizarEstado } from "./chartTheme";
+import type { ValoresTiles } from "./datos";
 
 export default function StatTiles({
-  contactos,
+  valores,
   cargando,
 }: {
-  contactos: Contacto[];
+  valores?: ValoresTiles;
   cargando: boolean;
 }) {
-  const conteo = (estado: string) =>
-    contactos.filter((c) => normalizarEstado(c.estado) === estado).length;
-
   const tiles = [
-    { label: "Leads", valor: contactos.length, color: "text-gray-900" },
-    { label: "Conversando", valor: conteo("en_conversacion"), color: "text-amber-600" },
-    { label: "Derivados", valor: conteo("derivado"), color: "text-[#00a884]" },
-    { label: "Visitas agendadas", valor: conteo("visita_agendada"), color: "text-blue-600" },
+    { label: "Leads", valor: valores?.leads ?? 0, color: "text-gray-900" },
+    { label: "Conversando", valor: valores?.conversando ?? 0, color: "text-amber-600" },
+    { label: "Derivados", valor: valores?.derivados ?? 0, color: "text-[#00a884]" },
+    { label: "Visitas agendadas", valor: valores?.visitas ?? 0, color: "text-blue-600" },
   ];
 
   return (

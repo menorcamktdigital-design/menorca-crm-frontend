@@ -3,41 +3,46 @@
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   LabelList,
 } from "recharts";
-import type { Contacto } from "@/types";
-import { esOficial, OTROS, proyectosDe, SIN_PROYECTO } from "@/lib/proyectos";
+import { OTROS } from "@/lib/proyectos";
 import { ACCENT, MUTED } from "./chartTheme";
 import ChartCard from "./ChartCard";
 
 const TOP = 8;
+const DIMMED = "#cfd8dc"; // barras fuera del filtro (contexto)
 
-export default function PlazaBar({ contactos }: { contactos: Contacto[] }) {
-  // Nombres oficiales; un lead con varios proyectos declarados cuenta en cada
-  // uno. Texto no reconocido va directo al grupo "Otros".
-  const porPlaza = new Map<string, number>();
-  for (const c of contactos) {
-    const proyectos = proyectosDe(c);
-    if (proyectos.length === 0) {
-      porPlaza.set(SIN_PROYECTO, (porPlaza.get(SIN_PROYECTO) || 0) + 1);
-      continue;
-    }
-    for (const p of proyectos) {
-      const plaza = esOficial(p) ? p : OTROS;
-      porPlaza.set(plaza, (porPlaza.get(plaza) || 0) + 1);
-    }
-  }
-
+// El conteo por plaza viene de /stats/proyectos, que no acepta filtro:
+// la gráfica siempre muestra la base completa. Con una plaza seleccionada,
+// esa barra se garantiza en la lista (aunque esté fuera del top) y se
+// resalta; el resto queda en gris como contexto.
+export default function PlazaBar({
+  conteos,
+  seleccionada,
+}: {
+  conteos: Map<string, number>;
+  seleccionada?: string;
+}) {
   // "Otros" acumula: no reconocidos + todo lo que quede fuera del top
+  const porPlaza = new Map(conteos);
   const otrosBase = porPlaza.get(OTROS) || 0;
   porPlaza.delete(OTROS);
   const ordenadas = [...porPlaza.entries()].sort((a, b) => b[1] - a[1]);
-  const top = ordenadas.slice(0, TOP);
-  const resto = ordenadas.slice(TOP).reduce((acc, [, n]) => acc + n, otrosBase);
+
+  let top = ordenadas.slice(0, TOP);
+  let fuera = ordenadas.slice(TOP);
+  if (seleccionada && !top.some(([p]) => p === seleccionada)) {
+    const propia = fuera.find(([p]) => p === seleccionada) ?? [seleccionada, 0];
+    fuera = fuera.filter(([p]) => p !== seleccionada);
+    top = [...top, propia as [string, number]];
+  }
+
+  const resto = fuera.reduce((acc, [, n]) => acc + n, otrosBase);
   const datos = [
     ...top.map(([plaza, valor]) => ({ plaza, valor })),
     ...(resto > 0 ? [{ plaza: OTROS, valor: resto }] : []),
@@ -46,7 +51,14 @@ export default function PlazaBar({ contactos }: { contactos: Contacto[] }) {
   const alto = Math.max(180, datos.length * 36);
 
   return (
-    <ChartCard titulo="Leads por plaza" subtitulo="Proyecto de interés declarado">
+    <ChartCard
+      titulo="Leads por plaza"
+      subtitulo={
+        seleccionada
+          ? `Toda la base · resaltando ${seleccionada}`
+          : "Proyecto de interés declarado"
+      }
+    >
       <div style={{ height: alto }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={datos} layout="vertical" margin={{ left: 0, right: 36 }}>
@@ -69,7 +81,13 @@ export default function PlazaBar({ contactos }: { contactos: Contacto[] }) {
                 fontSize: 12,
               }}
             />
-            <Bar dataKey="valor" fill={ACCENT} barSize={16} radius={[0, 4, 4, 0]}>
+            <Bar dataKey="valor" barSize={16} radius={[0, 4, 4, 0]}>
+              {datos.map((d) => (
+                <Cell
+                  key={d.plaza}
+                  fill={!seleccionada || d.plaza === seleccionada ? ACCENT : DIMMED}
+                />
+              ))}
               <LabelList
                 dataKey="valor"
                 position="right"

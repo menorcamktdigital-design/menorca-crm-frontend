@@ -114,12 +114,17 @@ export function esOficial(p: string): boolean {
   return PROYECTOS.includes(p);
 }
 
+// Texto libre de proyecto → nombres oficiales ([] si está vacío)
+export function proyectosDeTexto(raw: string | null | undefined): string[] {
+  const t = raw?.trim();
+  if (!t) return [];
+  return [...new Set(dividir(t).map(canonizar).filter(Boolean).map(aOficial))];
+}
+
 // Proyectos de un contacto, ya mapeados a nombres oficiales
 // ([] si no declaró ninguno)
 export function proyectosDe(c: Contacto): string[] {
-  const raw = c.proyecto_interes?.trim();
-  if (!raw) return [];
-  return [...new Set(dividir(raw).map(canonizar).filter(Boolean).map(aOficial))];
+  return proyectosDeTexto(c.proyecto_interes);
 }
 
 // Opciones para los filtros: la lista oficial + "Otros" (texto no

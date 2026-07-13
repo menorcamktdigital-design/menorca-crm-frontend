@@ -1,17 +1,16 @@
 "use client";
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import type { Contacto } from "@/types";
-import { ESTADO_CHART, normalizarEstado } from "./chartTheme";
+import type { DatoDonut } from "./datos";
 import ChartCard from "./ChartCard";
 
-export default function EstadoDonut({ contactos }: { contactos: Contacto[] }) {
-  const datos = ESTADO_CHART.map((e) => ({
-    ...e,
-    valor: contactos.filter((c) => normalizarEstado(c.estado) === e.key).length,
-  })).filter((d) => d.valor > 0);
-
-  const total = contactos.length;
+export default function EstadoDonut({
+  datos,
+  total,
+}: {
+  datos: DatoDonut[];
+  total: number;
+}) {
 
   return (
     <ChartCard titulo="Leads por estado" subtitulo="Distribución actual de la base">
