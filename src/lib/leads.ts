@@ -1,4 +1,5 @@
-import type { Contacto } from "@/types";
+import { BADGE_CONFIG, type Contacto } from "@/types";
+import { proyectosDe } from "./proyectos";
 
 // 'recontacto' es legacy en BD → cuenta como 'derivado'
 export function coincideEstado(c: Contacto, estado: string): boolean {
@@ -20,4 +21,35 @@ export function coincideBusqueda(c: Contacto, busqueda: string): boolean {
   const q = normalizar(busqueda.trim());
   if (!q) return true;
   return c.numero.includes(q) || normalizar(c.nombre || "").includes(q);
+}
+
+// Columnas del CSV de leads (dashboard y tabla exportan lo mismo). Solo lo
+// esencial: el "último mensaje" traía saltos de línea y emojis que rompían
+// el layout al abrirlo en Excel.
+export const COLUMNAS_CSV = [
+  { key: "nombre", label: "Nombre" },
+  { key: "numero", label: "Celular" },
+  { key: "proyecto", label: "Proyecto" },
+  { key: "estado", label: "Estado" },
+  { key: "ultima_actividad", label: "Última actividad" },
+];
+
+export function filasCSV(contactos: Contacto[]) {
+  return contactos.map((c) => ({
+    nombre: c.nombre || "",
+    numero: c.numero,
+    // Nombres oficiales normalizados, no el texto libre de la BD
+    proyecto: proyectosDe(c).join(", "),
+    estado: BADGE_CONFIG[c.estado]?.label || c.estado,
+    ultima_actividad: c.ultima_actividad
+      ? new Date(c.ultima_actividad).toLocaleString("es-PE", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })
+      : "",
+  }));
 }

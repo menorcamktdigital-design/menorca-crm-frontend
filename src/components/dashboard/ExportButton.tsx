@@ -1,17 +1,8 @@
 "use client";
 
 import { descargarCSV } from "@/lib/csv";
-import { BADGE_CONFIG, type Contacto } from "@/types";
-
-const COLUMNAS = [
-  { key: "numero", label: "Número" },
-  { key: "nombre", label: "Nombre" },
-  { key: "estado", label: "Estado" },
-  { key: "proyecto_interes", label: "Plaza / Proyecto" },
-  { key: "ultimo_mensaje", label: "Último mensaje" },
-  { key: "ultima_actividad", label: "Última actividad" },
-  { key: "total_mensajes", label: "Total mensajes" },
-];
+import { COLUMNAS_CSV, filasCSV } from "@/lib/leads";
+import type { Contacto } from "@/types";
 
 export default function ExportButton({
   contactos,
@@ -21,14 +12,10 @@ export default function ExportButton({
   plaza: string;
 }) {
   const exportar = () => {
-    const filas = contactos.map((c) => ({
-      ...c,
-      estado: BADGE_CONFIG[c.estado]?.label || c.estado,
-    }));
     const fecha = new Date().toISOString().slice(0, 10);
     const sufijo =
       plaza === "todas" ? "" : `_${plaza.replace(/[^\w-]+/g, "-").toLowerCase()}`;
-    descargarCSV(`leads_menorca${sufijo}_${fecha}.csv`, COLUMNAS, filas);
+    descargarCSV(`leads_menorca${sufijo}_${fecha}.csv`, COLUMNAS_CSV, filasCSV(contactos));
   };
 
   return (

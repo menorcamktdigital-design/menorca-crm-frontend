@@ -3,20 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTodosContactos } from "@/hooks/useTodosContactos";
 import { descargarCSV } from "@/lib/csv";
-import { coincideEstado } from "@/lib/leads";
+import { COLUMNAS_CSV, coincideEstado, filasCSV } from "@/lib/leads";
 import { listaProyectos, perteneceAProyecto } from "@/lib/proyectos";
 import SearchSelect from "@/components/ui/SearchSelect";
-import { BADGE_CONFIG } from "@/types";
-
-const COLUMNAS = [
-  { key: "numero", label: "Número" },
-  { key: "nombre", label: "Nombre" },
-  { key: "estado", label: "Estado" },
-  { key: "proyecto_interes", label: "Plaza / Proyecto" },
-  { key: "ultimo_mensaje", label: "Último mensaje" },
-  { key: "ultima_actividad", label: "Última actividad" },
-  { key: "total_mensajes", label: "Total mensajes" },
-];
 
 const ESTADOS = [
   { id: "todos", label: "Todos" },
@@ -66,17 +55,13 @@ export default function LeadsExport() {
   }, [contactos, estado, proyecto, desde, hasta]);
 
   const exportar = () => {
-    const filas = filtrados.map((c) => ({
-      ...c,
-      estado: BADGE_CONFIG[c.estado]?.label || c.estado,
-    }));
     const partes = ["leads"];
     if (estado !== "todos")
       partes.push(ESTADOS.find((e) => e.id === estado)!.label.replace(/\s+/g, "-").toLowerCase());
     if (proyecto !== "todos")
       partes.push(proyecto.replace(/[^\w-]+/g, "-").toLowerCase());
     if (desde || hasta) partes.push(`${desde || "inicio"}_a_${hasta || "hoy"}`);
-    descargarCSV(`${partes.join("_")}.csv`, COLUMNAS, filas);
+    descargarCSV(`${partes.join("_")}.csv`, COLUMNAS_CSV, filasCSV(filtrados));
     setAbierto(false);
   };
 

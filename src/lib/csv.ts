@@ -10,7 +10,10 @@ export function descargarCSV(
     return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
 
+  // "sep=," le indica a Excel el separador: sin esto, el Excel en español
+  // (que usa ";") muestra todo el contenido en una sola columna
   const lineas = [
+    "sep=,",
     columnas.map((c) => escapar(c.label)).join(","),
     ...filas.map((f) => columnas.map((c) => escapar(f[c.key])).join(",")),
   ];
