@@ -99,7 +99,7 @@ function escalaDias(): { key: string; label: string; leads: number; derivados: n
   }
   return dias;
 }
-
+//calculo de ratio de derivados/conversaciones del día
 export function actividadDesdeStats(rows: StatsActividad[]): DiaActividad[] {
   const dias = escalaDias();
   for (const r of rows) {
