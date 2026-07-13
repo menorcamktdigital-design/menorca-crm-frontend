@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useContactosPagina, PAGINA } from "@/hooks/useContactos";
 import { useTodosContactos } from "@/hooks/useTodosContactos";
-import { coincideEstado } from "@/lib/leads";
+import { coincideBusqueda, coincideEstado } from "@/lib/leads";
 import { OTROS, PROYECTOS, SIN_PROYECTO, perteneceAProyecto } from "@/lib/proyectos";
 import { useUIStore } from "@/store/uiStore";
 import SearchSelect from "@/components/ui/SearchSelect";
@@ -26,41 +26,54 @@ export default function LeadsPanel() {
   const setTab = useUIStore((s) => s.setTab);
   const [pagina, setPagina] = useState(1);
   const [proyecto, setProyecto] = useState("todos");
+  const [busqueda, setBusqueda] = useState("");
 
-  // proyecto_interes es texto libre que el backend no sabe normalizar, así
-  // que ese filtro se resuelve en el cliente sobre la base completa.
-  const porProyecto = proyecto !== "todos";
+  // proyecto_interes es texto libre que el backend no sabe normalizar, y la
+  // API tampoco expone búsqueda por número/nombre: ambos filtros se resuelven
+  // en el cliente sobre la base completa.
+  const enCliente = proyecto !== "todos" || busqueda.trim() !== "";
 
-  // Al cambiar el filtro se vuelve a la primera página
-  useEffect(() => setPagina(1), [filtroLead, proyecto]);
+  // Al cambiar cualquier filtro se vuelve a la primera página (ajuste de
+  // estado durante el render, sin efecto: evita el render extra en cascada)
+  const filtros = `${filtroLead}|${proyecto}|${busqueda}`;
+  const [prevFiltros, setPrevFiltros] = useState(filtros);
+  if (prevFiltros !== filtros) {
+    setPrevFiltros(filtros);
+    setPagina(1);
+  }
 
   // Paginación clásica de 50 (el filtro sigue yendo al servidor: ?estado=...)
   const { data, isLoading, isPlaceholderData } = useContactosPagina(
     pagina,
     filtroLead === "todos" ? undefined : filtroLead,
-    !porProyecto
+    !enCliente
   );
 
-  const { data: base = [], isLoading: cargandoBase } = useTodosContactos(porProyecto);
+  const { data: base = [], isLoading: cargandoBase } = useTodosContactos(enCliente);
 
-  const filtradosProyecto = useMemo(() => {
-    if (!porProyecto) return [];
+  const filtradosCliente = useMemo(() => {
+    if (!enCliente) return [];
     return base
-      .filter((c) => coincideEstado(c, filtroLead) && perteneceAProyecto(c, proyecto))
+      .filter(
+        (c) =>
+          coincideEstado(c, filtroLead) &&
+          (proyecto === "todos" || perteneceAProyecto(c, proyecto)) &&
+          coincideBusqueda(c, busqueda)
+      )
       .sort(
         (a, b) =>
           new Date(b.ultima_actividad || 0).getTime() -
           new Date(a.ultima_actividad || 0).getTime()
       );
-  }, [base, porProyecto, filtroLead, proyecto]);
+  }, [base, enCliente, filtroLead, proyecto, busqueda]);
 
-  const leads = porProyecto
-    ? filtradosProyecto.slice((pagina - 1) * PAGINA, pagina * PAGINA)
+  const leads = enCliente
+    ? filtradosCliente.slice((pagina - 1) * PAGINA, pagina * PAGINA)
     : (data?.leads ?? []);
-  const hayMas = porProyecto
-    ? pagina * PAGINA < filtradosProyecto.length
+  const hayMas = enCliente
+    ? pagina * PAGINA < filtradosCliente.length
     : (data?.hayMas ?? false);
-  const cargando = porProyecto ? cargandoBase : isLoading;
+  const cargando = enCliente ? cargandoBase : isLoading;
 
   // Al cambiar de página, la tabla vuelve arriba
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -92,6 +105,37 @@ export default function LeadsPanel() {
         <h2 className="text-lg font-semibold text-gray-900">Leads</h2>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <FilterChips />
+          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
+            <svg
+              className="h-4 w-4 shrink-0 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+              />
+            </svg>
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Número o nombre..."
+              className="w-40 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+            />
+            {busqueda && (
+              <button
+                onClick={() => setBusqueda("")}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Limpiar búsqueda"
+              >
+                ✕
+              </button>
+            )}
+          </div>
           <SearchSelect
             className="w-56"
             valor={proyecto}
@@ -117,7 +161,7 @@ export default function LeadsPanel() {
         <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-2.5">
           <span className="text-sm text-gray-500">
             {leads.length > 0 ? `${desde}–${hasta}` : "0"}
-            {porProyecto && ` de ${filtradosProyecto.length}`} · Página {pagina}
+            {enCliente && ` de ${filtradosCliente.length}`} · Página {pagina}
           </span>
           <div className="flex items-center gap-2">
             <button

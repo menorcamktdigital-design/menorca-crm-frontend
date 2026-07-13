@@ -97,10 +97,18 @@ export default function LeadsTable({
               className="border-b border-gray-100 transition-colors last:border-0 hover:bg-emerald-50/40"
             >
               {/* Solo el nombre abre el chat: así el resto de la fila
-                  (número, proyecto...) se puede seleccionar y copiar */}
+                  (número, proyecto...) se puede seleccionar y copiar.
+                  Es un <a> real para que el clic derecho / Ctrl+clic permita
+                  "abrir en otra pestaña"; el clic normal se intercepta y abre
+                  el chat en esta misma pestaña sin recargar. */}
               <td className="px-4 py-2.5">
-                <button
-                  onClick={() => abrirChat(c.numero)}
+                <a
+                  href={`/conversaciones?chat=${encodeURIComponent(c.numero)}`}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+                    e.preventDefault();
+                    abrirChat(c.numero);
+                  }}
                   title="Abrir conversación"
                   className="group flex cursor-pointer items-center gap-3 text-left"
                 >
@@ -108,7 +116,7 @@ export default function LeadsTable({
                   <span className="font-medium text-gray-900 group-hover:text-[#00a884] group-hover:underline">
                     {c.nombre || "Sin nombre"}
                   </span>
-                </button>
+                </a>
               </td>
               {/* select-all: un clic selecciona el número completo para copiar */}
               <td className="px-4 py-2.5 text-gray-500 tabular-nums select-all">

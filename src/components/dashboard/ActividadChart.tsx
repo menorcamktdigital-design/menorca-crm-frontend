@@ -54,8 +54,8 @@ export default function ActividadChart({ contactos }: { contactos: Contacto[] })
 
   return (
     <ChartCard
-      titulo="Leads vs. derivados por día"
-      subtitulo={`Leads activos en el día y cuántos quedaron derivados · últimos ${DIAS} días`}
+      titulo="Conversaciones vs. derivados por día"
+      subtitulo={`Conversaciones activas en el día y cuántas quedaron derivadas · últimos ${DIAS} días`}
     >
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
@@ -100,7 +100,7 @@ export default function ActividadChart({ contactos }: { contactos: Contacto[] })
             />
             <Area
               type="monotone"
-              name="Leads del día"
+              name="Conversaciones"
               dataKey="leads"
               stroke={COLOR_LEADS}
               strokeWidth={2}
