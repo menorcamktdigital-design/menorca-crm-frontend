@@ -24,8 +24,8 @@ export const PROYECTOS = [
   "San Antonio de Chiclayo 3",
   "San Antonio de Mala",
   "San Antonio de Pachacamac",
-  "Villa de San Antonio Chorrillos",
   "Villa Posada del Sol Chiclayo",
+  "Villas de San Antonio Chorrillos",
   "Villas Punta Mar Casas",
   "Villas Punta Mar Lotes",
 ];

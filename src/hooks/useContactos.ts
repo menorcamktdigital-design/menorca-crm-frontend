@@ -34,8 +34,9 @@ export const PAGINA = 50;
 
 // Página fija de 50 para la tabla de leads. Pide 51 filas: si llegan más
 // de 50 hay página siguiente (la API no devuelve el total).
-export function useContactosPagina(pagina: number, estado?: EstadoLead) {
+export function useContactosPagina(pagina: number, estado?: EstadoLead, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["contactos-pagina", estado ?? "todos", pagina],
     queryFn: () =>
       api

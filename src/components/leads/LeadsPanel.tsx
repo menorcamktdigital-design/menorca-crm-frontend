@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useContactosPagina, PAGINA } from "@/hooks/useContactos";
+import { useTodosContactos } from "@/hooks/useTodosContactos";
+import { coincideEstado } from "@/lib/leads";
+import { OTROS, PROYECTOS, SIN_PROYECTO, perteneceAProyecto } from "@/lib/proyectos";
 import { useUIStore } from "@/store/uiStore";
+import SearchSelect from "@/components/ui/SearchSelect";
 import FilterChips from "./FilterChips";
 import LeadsTable from "./LeadsTable";
 import LeadsExport from "./LeadsExport";
@@ -10,22 +14,53 @@ import LeadsExport from "./LeadsExport";
 const BTN_PAGINA =
   "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40";
 
+const OPCIONES_PROYECTO = [
+  { value: "todos", label: "Todos los proyectos" },
+  ...PROYECTOS.map((p) => ({ value: p, label: p })),
+  { value: OTROS, label: OTROS },
+  { value: SIN_PROYECTO, label: SIN_PROYECTO },
+];
+
 export default function LeadsPanel() {
   const filtroLead = useUIStore((s) => s.filtroLead);
   const setTab = useUIStore((s) => s.setTab);
   const [pagina, setPagina] = useState(1);
+  const [proyecto, setProyecto] = useState("todos");
+
+  // proyecto_interes es texto libre que el backend no sabe normalizar, así
+  // que ese filtro se resuelve en el cliente sobre la base completa.
+  const porProyecto = proyecto !== "todos";
 
   // Al cambiar el filtro se vuelve a la primera página
-  useEffect(() => setPagina(1), [filtroLead]);
+  useEffect(() => setPagina(1), [filtroLead, proyecto]);
 
   // Paginación clásica de 50 (el filtro sigue yendo al servidor: ?estado=...)
   const { data, isLoading, isPlaceholderData } = useContactosPagina(
     pagina,
-    filtroLead === "todos" ? undefined : filtroLead
+    filtroLead === "todos" ? undefined : filtroLead,
+    !porProyecto
   );
 
-  const leads = data?.leads ?? [];
-  const hayMas = data?.hayMas ?? false;
+  const { data: base = [], isLoading: cargandoBase } = useTodosContactos(porProyecto);
+
+  const filtradosProyecto = useMemo(() => {
+    if (!porProyecto) return [];
+    return base
+      .filter((c) => coincideEstado(c, filtroLead) && perteneceAProyecto(c, proyecto))
+      .sort(
+        (a, b) =>
+          new Date(b.ultima_actividad || 0).getTime() -
+          new Date(a.ultima_actividad || 0).getTime()
+      );
+  }, [base, porProyecto, filtroLead, proyecto]);
+
+  const leads = porProyecto
+    ? filtradosProyecto.slice((pagina - 1) * PAGINA, pagina * PAGINA)
+    : (data?.leads ?? []);
+  const hayMas = porProyecto
+    ? pagina * PAGINA < filtradosProyecto.length
+    : (data?.hayMas ?? false);
+  const cargando = porProyecto ? cargandoBase : isLoading;
 
   // Al cambiar de página, la tabla vuelve arriba
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -57,6 +92,12 @@ export default function LeadsPanel() {
         <h2 className="text-lg font-semibold text-gray-900">Leads</h2>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <FilterChips />
+          <SearchSelect
+            className="w-56"
+            valor={proyecto}
+            onChange={setProyecto}
+            opciones={OPCIONES_PROYECTO}
+          />
           <LeadsExport />
         </div>
       </div>
@@ -69,13 +110,14 @@ export default function LeadsPanel() {
             isPlaceholderData ? "opacity-50" : ""
           }`}
         >
-          <LeadsTable leads={leads} cargando={isLoading} />
+          <LeadsTable leads={leads} cargando={cargando} />
         </div>
 
         {/* Paginación */}
         <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-2.5">
           <span className="text-sm text-gray-500">
-            {leads.length > 0 ? `${desde}–${hasta}` : "0"} · Página {pagina}
+            {leads.length > 0 ? `${desde}–${hasta}` : "0"}
+            {porProyecto && ` de ${filtradosProyecto.length}`} · Página {pagina}
           </span>
           <div className="flex items-center gap-2">
             <button

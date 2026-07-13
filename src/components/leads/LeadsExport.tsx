@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTodosContactos } from "@/hooks/useTodosContactos";
 import { descargarCSV } from "@/lib/csv";
+import { coincideEstado } from "@/lib/leads";
 import { listaProyectos, perteneceAProyecto } from "@/lib/proyectos";
 import SearchSelect from "@/components/ui/SearchSelect";
-import { BADGE_CONFIG, type Contacto } from "@/types";
+import { BADGE_CONFIG } from "@/types";
 
 const COLUMNAS = [
   { key: "numero", label: "Número" },
@@ -23,13 +24,6 @@ const ESTADOS = [
   { id: "derivado", label: "Derivados" },
   { id: "visita_agendada", label: "Visita agendada" },
 ];
-
-// 'recontacto' es legacy en BD → cuenta como 'derivado'
-function coincideEstado(c: Contacto, estado: string): boolean {
-  if (estado === "todos") return true;
-  if (estado === "derivado") return c.estado === "derivado" || c.estado === "recontacto";
-  return c.estado === estado;
-}
 
 export default function LeadsExport() {
   const [abierto, setAbierto] = useState(false);
