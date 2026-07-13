@@ -1,8 +1,9 @@
 "use client";
 
 import {
-  AreaChart,
+  ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -16,18 +17,20 @@ import ChartCard from "./ChartCard";
 
 const COLOR_LEADS = "#667781"; // total del día (neutro)
 const COLOR_DERIV = ACCENT; // subconjunto derivado (verde marca)
+const COLOR_RATIO = "#eda100"; // % derivación (eje derecho, ámbar de la marca)
 
-// Serie de los últimos 14 días: conversaciones con actividad ese día y
-// cuántas quedaron derivadas (ver datos.ts para las dos fuentes posibles)
+// Serie de los últimos 14 días: conversaciones con actividad ese día,
+// cuántas quedaron derivadas y el ratio diario derivados/conversaciones
+// (ver datos.ts para las dos fuentes posibles)
 export default function ActividadChart({ dias }: { dias: DiaActividad[] }) {
   return (
     <ChartCard
       titulo="Conversaciones vs. derivados por día"
-      subtitulo={`Conversaciones activas en el día y cuántas quedaron derivadas · últimos ${DIAS_ACTIVIDAD} días`}
+      subtitulo={`Conversaciones activas en el día, cuántas quedaron derivadas y el ratio de derivación · últimos ${DIAS_ACTIVIDAD} días`}
     >
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={dias} margin={{ top: 8, left: -18, right: 8 }}>
+          <ComposedChart data={dias} margin={{ top: 8, left: -18, right: -14 }}>
             <defs>
               <linearGradient id="leadsFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={COLOR_LEADS} stopOpacity={0.1} />
@@ -47,10 +50,20 @@ export default function ActividadChart({ dias }: { dias: DiaActividad[] }) {
               interval="preserveStartEnd"
             />
             <YAxis
+              yAxisId="cantidad"
               allowDecimals={false}
               tickLine={false}
               axisLine={false}
               tick={{ fontSize: 11, fill: MUTED }}
+            />
+            <YAxis
+              yAxisId="ratio"
+              orientation="right"
+              domain={[0, 100]}
+              tickLine={false}
+              axisLine={false}
+              tick={{ fontSize: 11, fill: COLOR_RATIO }}
+              tickFormatter={(v: number) => `${v}%`}
             />
             <Tooltip
               contentStyle={{
@@ -58,6 +71,9 @@ export default function ActividadChart({ dias }: { dias: DiaActividad[] }) {
                 border: "1px solid #e9edef",
                 fontSize: 12,
               }}
+              formatter={(value, name) =>
+                name === "Ratio derivación" ? [`${value}%`, name] : [value, name]
+              }
             />
             <Legend
               verticalAlign="top"
@@ -67,6 +83,7 @@ export default function ActividadChart({ dias }: { dias: DiaActividad[] }) {
               wrapperStyle={{ fontSize: 12, paddingBottom: 8 }}
             />
             <Area
+              yAxisId="cantidad"
               type="monotone"
               name="Conversaciones"
               dataKey="leads"
@@ -76,6 +93,7 @@ export default function ActividadChart({ dias }: { dias: DiaActividad[] }) {
               activeDot={{ r: 4 }}
             />
             <Area
+              yAxisId="cantidad"
               type="monotone"
               name="Derivados"
               dataKey="derivados"
@@ -84,7 +102,19 @@ export default function ActividadChart({ dias }: { dias: DiaActividad[] }) {
               fill="url(#derivFill)"
               activeDot={{ r: 4 }}
             />
-          </AreaChart>
+            <Line
+              yAxisId="ratio"
+              type="monotone"
+              name="Ratio derivación"
+              dataKey="ratio"
+              stroke={COLOR_RATIO}
+              strokeWidth={2}
+              strokeDasharray="5 4"
+              dot={false}
+              activeDot={{ r: 4 }}
+              connectNulls
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </ChartCard>

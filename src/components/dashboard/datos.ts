@@ -25,6 +25,8 @@ export interface DiaActividad {
   label: string;
   leads: number;
   derivados: number;
+  // % derivados/conversaciones del día (null cuando no hubo actividad)
+  ratio: number | null;
 }
 
 export const DIAS_ACTIVIDAD = 14;
@@ -106,5 +108,8 @@ export function actividadDesdeStats(rows: StatsActividad[]): DiaActividad[] {
     dia.leads = Number(r.total) || 0;
     dia.derivados = Number(r.derivados) || 0;
   }
-  return dias;
+  return dias.map((d) => ({
+    ...d,
+    ratio: d.leads > 0 ? Math.round((d.derivados / d.leads) * 1000) / 10 : null,
+  }));
 }
