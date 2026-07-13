@@ -10,13 +10,20 @@ export default function ConversacionesPage() {
   const numeroActivo = useUIStore((s) => s.numeroActivo);
 
   // En móvil solo se muestra un panel a la vez:
-  // sidebar por defecto; chat si hay número activo; leads si el tab es leads
+  // sidebar por defecto; chat si hay número activo; leads si el tab es leads.
+  // En leads el sidebar se oculta también en desktop (vista a pantalla completa).
   const mostrarPanelEnMovil = tab === "leads" || !!numeroActivo;
 
   return (
     <main className="flex h-full overflow-hidden bg-gray-100">
       <div
-        className={`${mostrarPanelEnMovil ? "hidden" : "flex"} h-full w-full md:flex md:w-auto`}
+        className={`${
+          tab === "leads"
+            ? "hidden"
+            : mostrarPanelEnMovil
+              ? "hidden md:flex"
+              : "flex"
+        } h-full w-full md:w-auto`}
       >
         <Sidebar />
       </div>

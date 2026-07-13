@@ -6,29 +6,39 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  Legend,
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
 import type { Contacto } from "@/types";
-import { ACCENT, GRID, MUTED } from "./chartTheme";
+import { ACCENT, GRID, MUTED, normalizarEstado } from "./chartTheme";
 import ChartCard from "./ChartCard";
 
 const DIAS = 14;
+const COLOR_LEADS = "#667781"; // total del día (neutro)
+const COLOR_DERIV = ACCENT; // subconjunto derivado (verde marca)
 
 export default function ActividadChart({ contactos }: { contactos: Contacto[] }) {
-  // Serie de los últimos 14 días: cuántos leads tuvieron su última
-  // actividad ese día (única señal temporal disponible en la API)
+  // Serie de los últimos 14 días: leads con última actividad ese día (total)
+  // y cuántos de ellos quedaron derivados. La API solo expone
+  // ultima_actividad como señal temporal (no hay fecha de creación).
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
 
-  const dias: { fecha: Date; label: string; valor: number }[] = [];
+  const dias: {
+    fecha: Date;
+    label: string;
+    leads: number;
+    derivados: number;
+  }[] = [];
   for (let i = DIAS - 1; i >= 0; i--) {
     const f = new Date(hoy);
     f.setDate(hoy.getDate() - i);
     dias.push({
       fecha: f,
       label: f.toLocaleDateString("es-PE", { day: "2-digit", month: "short" }),
-      valor: 0,
+      leads: 0,
+      derivados: 0,
     });
   }
 
@@ -37,21 +47,27 @@ export default function ActividadChart({ contactos }: { contactos: Contacto[] })
     const f = new Date(c.ultima_actividad);
     f.setHours(0, 0, 0, 0);
     const dia = dias.find((d) => d.fecha.getTime() === f.getTime());
-    if (dia) dia.valor++;
+    if (!dia) continue;
+    dia.leads++;
+    if (normalizarEstado(c.estado) === "derivado") dia.derivados++;
   }
 
   return (
     <ChartCard
-      titulo="Actividad por día"
-      subtitulo={`Leads con última actividad en cada día · últimos ${DIAS} días`}
+      titulo="Leads vs. derivados por día"
+      subtitulo={`Leads activos en el día y cuántos quedaron derivados · últimos ${DIAS} días`}
     >
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={dias} margin={{ top: 8, left: -18, right: 8 }}>
             <defs>
-              <linearGradient id="actividadFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={ACCENT} stopOpacity={0.18} />
-                <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
+              <linearGradient id="leadsFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={COLOR_LEADS} stopOpacity={0.1} />
+                <stop offset="100%" stopColor={COLOR_LEADS} stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="derivFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={COLOR_DERIV} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={COLOR_DERIV} stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke={GRID} />
@@ -69,20 +85,35 @@ export default function ActividadChart({ contactos }: { contactos: Contacto[] })
               tick={{ fontSize: 11, fill: MUTED }}
             />
             <Tooltip
-              formatter={(v) => [`${v} leads`, ""]}
-              separator=""
               contentStyle={{
                 borderRadius: 8,
                 border: "1px solid #e9edef",
                 fontSize: 12,
               }}
             />
+            <Legend
+              verticalAlign="top"
+              align="right"
+              iconType="circle"
+              iconSize={8}
+              wrapperStyle={{ fontSize: 12, paddingBottom: 8 }}
+            />
             <Area
               type="monotone"
-              dataKey="valor"
-              stroke={ACCENT}
+              name="Leads del día"
+              dataKey="leads"
+              stroke={COLOR_LEADS}
               strokeWidth={2}
-              fill="url(#actividadFill)"
+              fill="url(#leadsFill)"
+              activeDot={{ r: 4 }}
+            />
+            <Area
+              type="monotone"
+              name="Derivados"
+              dataKey="derivados"
+              stroke={COLOR_DERIV}
+              strokeWidth={2}
+              fill="url(#derivFill)"
               activeDot={{ r: 4 }}
             />
           </AreaChart>

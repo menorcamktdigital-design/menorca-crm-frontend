@@ -23,11 +23,12 @@ async function fetchTodos(): Promise<Contacto[]> {
   return todos;
 }
 
-export function useTodosContactos() {
+export function useTodosContactos(enabled = true) {
   return useQuery<Contacto[]>({
     queryKey: ["contactos-todos"],
     queryFn: fetchTodos,
     staleTime: 55_000,
     refetchInterval: 60_000, // el dashboard no necesita polling de 5s
+    enabled,
   });
 }

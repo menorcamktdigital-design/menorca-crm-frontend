@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTodosContactos } from "@/hooks/useTodosContactos";
+import { listaProyectos, perteneceAProyecto } from "@/lib/proyectos";
 import StatTiles from "@/components/dashboard/StatTiles";
 import EstadoDonut from "@/components/dashboard/EstadoDonut";
 import PlazaBar from "@/components/dashboard/PlazaBar";
@@ -13,21 +14,14 @@ export default function DashboardPage() {
   const { data: contactos = [], isLoading, isError } = useTodosContactos();
   const [plaza, setPlaza] = useState("todas");
 
-  const plazas = useMemo(
-    () =>
-      [...new Set(contactos.map((c) => c.proyecto_interes?.trim() || "Sin proyecto"))].sort(
-        (a, b) => a.localeCompare(b, "es")
-      ),
-    [contactos]
-  );
+  // Lista oficial de proyectos + "Otros" / "Sin proyecto" si aplican
+  const plazas = useMemo(() => listaProyectos(contactos), [contactos]);
 
   const filtrados = useMemo(
     () =>
       plaza === "todas"
         ? contactos
-        : contactos.filter(
-            (c) => (c.proyecto_interes?.trim() || "Sin proyecto") === plaza
-          ),
+        : contactos.filter((c) => perteneceAProyecto(c, plaza)),
     [contactos, plaza]
   );
 

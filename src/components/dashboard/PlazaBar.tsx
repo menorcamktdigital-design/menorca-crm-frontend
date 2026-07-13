@@ -10,24 +10,37 @@ import {
   LabelList,
 } from "recharts";
 import type { Contacto } from "@/types";
+import { esOficial, OTROS, proyectosDe, SIN_PROYECTO } from "@/lib/proyectos";
 import { ACCENT, MUTED } from "./chartTheme";
 import ChartCard from "./ChartCard";
 
 const TOP = 8;
 
 export default function PlazaBar({ contactos }: { contactos: Contacto[] }) {
+  // Nombres oficiales; un lead con varios proyectos declarados cuenta en cada
+  // uno. Texto no reconocido va directo al grupo "Otros".
   const porPlaza = new Map<string, number>();
   for (const c of contactos) {
-    const plaza = c.proyecto_interes?.trim() || "Sin proyecto";
-    porPlaza.set(plaza, (porPlaza.get(plaza) || 0) + 1);
+    const proyectos = proyectosDe(c);
+    if (proyectos.length === 0) {
+      porPlaza.set(SIN_PROYECTO, (porPlaza.get(SIN_PROYECTO) || 0) + 1);
+      continue;
+    }
+    for (const p of proyectos) {
+      const plaza = esOficial(p) ? p : OTROS;
+      porPlaza.set(plaza, (porPlaza.get(plaza) || 0) + 1);
+    }
   }
 
+  // "Otros" acumula: no reconocidos + todo lo que quede fuera del top
+  const otrosBase = porPlaza.get(OTROS) || 0;
+  porPlaza.delete(OTROS);
   const ordenadas = [...porPlaza.entries()].sort((a, b) => b[1] - a[1]);
   const top = ordenadas.slice(0, TOP);
-  const resto = ordenadas.slice(TOP).reduce((acc, [, n]) => acc + n, 0);
+  const resto = ordenadas.slice(TOP).reduce((acc, [, n]) => acc + n, otrosBase);
   const datos = [
     ...top.map(([plaza, valor]) => ({ plaza, valor })),
-    ...(resto > 0 ? [{ plaza: "Otros", valor: resto }] : []),
+    ...(resto > 0 ? [{ plaza: OTROS, valor: resto }] : []),
   ];
 
   const alto = Math.max(180, datos.length * 36);
