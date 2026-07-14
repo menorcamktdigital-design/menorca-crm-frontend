@@ -90,20 +90,22 @@ export function useStatsMultitouch(proyecto?: string, rango?: RangoFechas) {
 // Proyectos de interés de los leads de un anuncio. Se pide bajo demanda
 // (al expandir un anuncio) y solo con el rango de fechas: filtrar además
 // por proyecto dejaría el desglose con una sola fila, sin información.
-export function useProyectosDeAnuncio(anuncio: string, rango?: RangoFechas) {
+// Filtra por ad_id (identificador único real de Meta), no por el nombre
+// de texto del anuncio, que puede repetirse entre dos anuncios distintos.
+export function useProyectosDeAnuncio(adId: string, rango?: RangoFechas) {
   return useQuery<ProyectoDeAnuncio[]>({
     queryKey: [
       "stats-anuncio-proyectos",
-      anuncio,
+      adId,
       rango?.desde ?? "",
       rango?.hasta ?? "",
     ],
     queryFn: () =>
       api
-        .get(`/api/crm/stats/anuncios/${encodeURIComponent(anuncio)}/proyectos`, {
-          params: paramsFiltro(undefined, rango),
+        .get("/api/crm/stats/anuncios/proyectos", {
+          params: { ad_id: adId, ...paramsFiltro(undefined, rango) },
         })
         .then((r) => proyectosDeAnuncioDeApi(filas(r.data))),
-    enabled: anuncio.length > 0,
+    enabled: adId.length > 0,
   });
 }

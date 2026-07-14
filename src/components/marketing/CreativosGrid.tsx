@@ -35,7 +35,7 @@ function Media({ creativo }: { creativo: Creativo }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={url}
-      alt={c.esCatalogoDinamico ? c.anuncio : c.titulo || c.anuncio}
+      alt={c.esCatalogoDinamico ? c.anuncio : c.campana || c.anuncio}
       loading="lazy"
       referrerPolicy="no-referrer"
       onError={() => setRota(true)}
@@ -69,9 +69,11 @@ function Media({ creativo }: { creativo: Creativo }) {
 function TarjetaCreativo({
   creativo,
   rango,
+  nombreRepetido,
 }: {
   creativo: Creativo;
   rango?: RangoFechas;
+  nombreRepetido: boolean;
 }) {
   const [verProyectos, setVerProyectos] = useState(false);
   const c = creativo;
@@ -96,33 +98,30 @@ function TarjetaCreativo({
           )}
         </div>
 
-        {!c.esCatalogoDinamico && (
-          <>
-            {c.titulo && (
-              <p className="line-clamp-2 text-sm font-medium text-gray-800" title={c.titulo}>
-                {c.titulo}
-              </p>
-            )}
-            {c.texto && (
-              <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-xs text-gray-500" title={c.texto}>
-                {c.texto}
-              </p>
-            )}
-            {!c.titulo && !c.texto && (
-              <p className="text-xs text-gray-400">Sin copy disponible</p>
-            )}
-          </>
+        <p className="line-clamp-2 text-sm font-medium text-gray-800" title={c.campana}>
+          {esPlaceholder(c.campana) ? "Catálogo dinámico" : c.campana}
+        </p>
+
+        {!c.esCatalogoDinamico && c.texto && (
+          <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-xs text-gray-500" title={c.texto}>
+            {c.texto}
+          </p>
+        )}
+        {!c.esCatalogoDinamico && !c.texto && (
+          <p className="text-xs text-gray-400">Sin copy disponible</p>
         )}
 
         {/* Nombre interno del anuncio en Meta: identifica la pieza exacta */}
         <p className="mt-1.5 truncate text-xs text-gray-400" title={c.anuncio}>
           {c.anuncio}
         </p>
-        <p
-          className="truncate text-xs text-gray-400"
-          title={`Campaña: ${c.campana} · Conjunto: ${c.adset}`}
-        >
-          {esPlaceholder(c.campana) ? "Catálogo" : c.campana} · {c.adset}
+        {/* Dos anuncios reales distintos pueden compartir este nombre de
+            texto: se distinguen mostrando el ad_id */}
+        {nombreRepetido && c.adId && (
+          <p className="truncate text-[10px] text-gray-400">{c.adId}</p>
+        )}
+        <p className="truncate text-xs text-gray-400" title={`Conjunto: ${c.adset}`}>
+          {c.adset}
         </p>
       </div>
 
@@ -148,7 +147,7 @@ function TarjetaCreativo({
 
       {verProyectos && (
         <div className="mt-1 border-t border-gray-100 pt-1">
-          <AnuncioProyectos anuncio={c.anuncio} rango={rango} />
+          <AnuncioProyectos adId={c.adId} rango={rango} totalLeads={c.leads} />
         </div>
       )}
     </div>
@@ -156,9 +155,9 @@ function TarjetaCreativo({
 }
 
 // Grid de creativos reales de Meta Ads (imagen/video + copy) con su funnel.
-// Los de catálogo dinámico se marcan con badge en lugar del copy. Puede
-// haber más de una fila por ad_id (variantes del creativo): la key lleva
-// el índice para mantenerlas separadas.
+// Los de catálogo dinámico se marcan con badge en lugar del copy. Cada fila
+// es un ad_id único (identificador real de Meta); dos anuncios distintos
+// que comparten nombre de texto se distinguen mostrando el ad_id.
 export default function CreativosGrid({
   creativos,
   rango,
@@ -172,6 +171,9 @@ export default function CreativosGrid({
 }) {
   const [todos, setTodos] = useState(false);
   const visibles = todos ? creativos : creativos.slice(0, TOP);
+  const nombresRepetidos = new Set(
+    visibles.map((c) => c.anuncio).filter((nombre, i, arr) => arr.indexOf(nombre) !== i)
+  );
 
   return (
     <ChartCard
@@ -181,7 +183,12 @@ export default function CreativosGrid({
       <EstadoDatos cargando={cargando} error={error} vacio={creativos.length === 0}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visibles.map((c, i) => (
-            <TarjetaCreativo key={`${c.adId || c.anuncio}-${i}`} creativo={c} rango={rango} />
+            <TarjetaCreativo
+              key={c.adId || `${c.anuncio}-${i}`}
+              creativo={c}
+              rango={rango}
+              nombreRepetido={nombresRepetidos.has(c.anuncio)}
+            />
           ))}
         </div>
 

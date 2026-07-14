@@ -96,20 +96,32 @@ export function fuentesDeApi(rows: Row[]): Fuente[] {
 }
 
 // ---- GET /stats/campanas — funnel por campaña ----
+// Agrupado por campaign_id real de Meta (no por el nombre de texto, que
+// dos campañas distintas podrían compartir)
 
 export interface Campana extends Funnel {
+  campaignId: string;
   campana: string;
 }
 
 export function campanasDeApi(rows: Row[]): Campana[] {
   return rows
-    .map((r) => ({ campana: texto(r.campana) || "(sin campaña)", ...funnelDe(r) }))
+    .map((r) => ({
+      campaignId: texto(r.campaign_id),
+      campana: texto(r.campana) || "(sin campaña)",
+      ...funnelDe(r),
+    }))
     .sort(porLeads);
 }
 
 // ---- GET /stats/anuncios — funnel campaña → adset → anuncio ----
+// Cada fila trae su propio ad_id: es el identificador único real de Meta.
+// El nombre de texto (`anuncio`) puede repetirse entre dos anuncios
+// distintos, así que nunca se usa como key.
 
 export interface Anuncio extends Funnel {
+  adId: string;
+  campaignId: string;
   campana: string;
   adset: string;
   anuncio: string;
@@ -118,6 +130,8 @@ export interface Anuncio extends Funnel {
 export function anunciosDeApi(rows: Row[]): Anuncio[] {
   return rows
     .map((r) => ({
+      adId: texto(r.ad_id),
+      campaignId: texto(r.campaign_id),
       campana: texto(r.campana) || "(sin campaña)",
       adset: texto(r.adset) || "(sin conjunto)",
       anuncio: texto(r.anuncio) || "(sin anuncio)",
@@ -127,7 +141,9 @@ export function anunciosDeApi(rows: Row[]): Anuncio[] {
 }
 
 // Jerarquía campaña → adset → anuncio con subtotales agregados por nivel,
-// cada nivel ordenado por leads
+// cada nivel ordenado por leads. Se agrupa por campaignId/adset (no por
+// nombre de texto) para no mezclar entidades distintas que comparten
+// nombre.
 export interface NodoAdset {
   adset: string;
   funnel: Funnel;
@@ -135,20 +151,22 @@ export interface NodoAdset {
 }
 
 export interface NodoCampana {
+  campaignId: string;
   campana: string;
   funnel: Funnel;
   adsets: NodoAdset[];
 }
 
 export function arbolAnuncios(anuncios: Anuncio[]): NodoCampana[] {
-  const porCampana = new Map<string, Map<string, Anuncio[]>>();
+  const porCampana = new Map<string, { campana: string; adsets: Map<string, Anuncio[]> }>();
   for (const a of anuncios) {
-    const adsets = porCampana.get(a.campana) ?? new Map<string, Anuncio[]>();
-    porCampana.set(a.campana, adsets);
-    adsets.set(a.adset, [...(adsets.get(a.adset) ?? []), a]);
+    const clave = a.campaignId || a.campana;
+    const entrada = porCampana.get(clave) ?? { campana: a.campana, adsets: new Map<string, Anuncio[]>() };
+    porCampana.set(clave, entrada);
+    entrada.adsets.set(a.adset, [...(entrada.adsets.get(a.adset) ?? []), a]);
   }
   return [...porCampana.entries()]
-    .map(([campana, adsets]) => {
+    .map(([campaignId, { campana, adsets }]) => {
       const nodos = [...adsets.entries()]
         .map(([adset, lista]) => ({
           adset,
@@ -157,6 +175,7 @@ export function arbolAnuncios(anuncios: Anuncio[]): NodoCampana[] {
         }))
         .sort((a, b) => b.funnel.leads - a.funnel.leads);
       return {
+        campaignId,
         campana,
         funnel: sumarFunnels(nodos.map((n) => n.funnel)),
         adsets: nodos,
@@ -166,13 +185,12 @@ export function arbolAnuncios(anuncios: Anuncio[]): NodoCampana[] {
 }
 
 // ---- GET /stats/creativos — como anuncios, con el creativo real ----
-// El backend devuelve UNA FILA POR LEAD (el mismo anuncio se repite n
-// veces, a veces como variante de catálogo sin resolver): acá se agrupa
-// por ad_id sumando el funnel y se muestra la mejor variante disponible
-// (la resuelta y con imagen/video).
+// El backend devuelve UNA FILA POR LEAD (el mismo ad_id se repite n veces,
+// a veces como variante de catálogo sin resolver, a veces con distinto
+// derivados/leads): acá se agrupa por ad_id sumando el funnel y se muestra
+// la mejor variante disponible (la resuelta y con imagen/video).
 
 export interface Creativo extends Anuncio {
-  adId: string;
   titulo: string;
   texto: string;
   tipoMedia: "image" | "video" | null;
@@ -185,10 +203,12 @@ export interface Creativo extends Anuncio {
 
 export function creativosDeApi(rows: Row[]): Creativo[] {
   const grupos = new Map<string, Creativo[]>();
+  let sinAdId = 0;
   for (const r of rows) {
     const tipo = texto(r.tipo_media).toLowerCase();
     const c: Creativo = {
       adId: texto(r.ad_id),
+      campaignId: texto(r.campaign_id),
       campana: texto(r.campana) || "(sin campaña)",
       adset: texto(r.adset) || "(sin conjunto)",
       anuncio: texto(r.anuncio) || "(sin anuncio)",
@@ -200,7 +220,10 @@ export function creativosDeApi(rows: Row[]): Creativo[] {
       esCatalogoDinamico: bool(r.es_catalogo_dinamico),
       ...funnelDe(r),
     };
-    const clave = c.adId || `${c.campana}|${c.adset}|${c.anuncio}`;
+    // Sin ad_id no hay forma fiable de saber si dos filas son el mismo
+    // anuncio: se tratan como leads separados (clave única por fila) en
+    // vez de agruparlas por texto, que podría mezclar leads distintos.
+    const clave = c.adId || `sin-ad-id:${sinAdId++}`;
     grupos.set(clave, [...(grupos.get(clave) ?? []), c]);
   }
 
@@ -217,7 +240,7 @@ export function creativosDeApi(rows: Row[]): Creativo[] {
     .sort(porLeads);
 }
 
-// ---- GET /stats/anuncios/:anuncio/proyectos ----
+// ---- GET /stats/anuncios/proyectos?ad_id=... ----
 
 export interface ProyectoDeAnuncio {
   proyecto: string;

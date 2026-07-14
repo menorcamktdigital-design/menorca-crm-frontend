@@ -69,10 +69,11 @@ export default function CampanasFunnel({
   cargando: boolean;
   error: boolean;
 }) {
-  // Desglose por campaña, indexado por nombre
+  // Desglose por campaña, indexado por campaignId (no por nombre: dos
+  // campañas reales distintas pueden compartir el mismo texto)
   const arbol = useMemo(() => {
     const m = new Map<string, NodoCampana>();
-    for (const nodo of arbolAnuncios(anuncios)) m.set(nodo.campana, nodo);
+    for (const nodo of arbolAnuncios(anuncios)) m.set(nodo.campaignId || nodo.campana, nodo);
     return m;
   }, [anuncios]);
 
@@ -107,10 +108,11 @@ export default function CampanasFunnel({
 
         <ul className="divide-y divide-gray-50">
           {visibles.map((c) => {
-            const kCampana = `c:${c.campana}`;
-            const nodo = arbol.get(c.campana);
+            const claveCampana = c.campaignId || c.campana;
+            const kCampana = `c:${claveCampana}`;
+            const nodo = arbol.get(claveCampana);
             return (
-              <li key={c.campana}>
+              <li key={claveCampana}>
                 <button
                   onClick={() => nodo && toggle(kCampana)}
                   disabled={!nodo}
@@ -125,7 +127,15 @@ export default function CampanasFunnel({
 
                 {abiertos.has(kCampana) &&
                   nodo?.adsets.map((a) => {
-                    const kAdset = `a:${c.campana}|${a.adset}`;
+                    const kAdset = `a:${claveCampana}|${a.adset}`;
+                    // Nombres de anuncio repetidos dentro del mismo conjunto:
+                    // dos anuncios reales distintos que comparten texto. Se
+                    // distinguen mostrando el ad_id chico debajo del nombre.
+                    const nombresRepetidos = new Set(
+                      a.anuncios
+                        .map((an) => an.anuncio)
+                        .filter((nombre, i, arr) => arr.indexOf(nombre) !== i)
+                    );
                     return (
                       <div key={a.adset} className="pl-5">
                         <button
@@ -141,22 +151,29 @@ export default function CampanasFunnel({
 
                         {abiertos.has(kAdset) &&
                           a.anuncios.map((an) => {
-                            const kAnuncio = `n:${c.campana}|${a.adset}|${an.anuncio}`;
+                            const kAnuncio = `n:${an.adId || `${claveCampana}|${a.adset}|${an.anuncio}`}`;
                             return (
-                              <div key={an.anuncio} className="pl-5">
+                              <div key={an.adId || kAnuncio}>
                                 <button
                                   onClick={() => toggle(kAnuncio)}
-                                  className="flex w-full items-center gap-2 py-2 text-left text-sm hover:bg-gray-50"
+                                  className="flex w-full items-center gap-2 py-2 pl-5 text-left text-sm hover:bg-gray-50"
                                 >
                                   <Chevron abierto={abiertos.has(kAnuncio)} />
-                                  <span className="min-w-0 flex-1 truncate text-gray-600" title={an.anuncio}>
-                                    {an.anuncio}
+                                  <span className="min-w-0 flex-1 truncate text-left">
+                                    <span className="block truncate text-gray-600" title={an.anuncio}>
+                                      {an.anuncio}
+                                    </span>
+                                    {nombresRepetidos.has(an.anuncio) && an.adId && (
+                                      <span className="block truncate text-[10px] text-gray-400">
+                                        {an.adId}
+                                      </span>
+                                    )}
                                   </span>
                                   <Metricas funnel={an} />
                                 </button>
                                 {abiertos.has(kAnuncio) && (
-                                  <div className="border-l-2 border-gray-100 pb-2 pl-6">
-                                    <AnuncioProyectos anuncio={an.anuncio} rango={rango} />
+                                  <div className="border-l-2 border-gray-100 pb-2 pl-10">
+                                    <AnuncioProyectos adId={an.adId} rango={rango} totalLeads={an.leads} />
                                   </div>
                                 )}
                               </div>
