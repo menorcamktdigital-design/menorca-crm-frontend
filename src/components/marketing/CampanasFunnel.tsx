@@ -69,11 +69,12 @@ export default function CampanasFunnel({
   cargando: boolean;
   error: boolean;
 }) {
-  // Desglose por campaña, indexado por campaignId (no por nombre: dos
-  // campañas reales distintas pueden compartir el mismo texto)
+  // Desglose por campaña, indexado por nombre de texto: es la única clave
+  // que /stats/campanas y /stats/anuncios comparten de forma confiable
+  // (campaign_id no siempre viene en /stats/anuncios)
   const arbol = useMemo(() => {
     const m = new Map<string, NodoCampana>();
-    for (const nodo of arbolAnuncios(anuncios)) m.set(nodo.campaignId || nodo.campana, nodo);
+    for (const nodo of arbolAnuncios(anuncios)) m.set(nodo.campana, nodo);
     return m;
   }, [anuncios]);
 
@@ -107,12 +108,12 @@ export default function CampanasFunnel({
         </div>
 
         <ul className="divide-y divide-gray-50">
-          {visibles.map((c) => {
-            const claveCampana = c.campaignId || c.campana;
+          {visibles.map((c, i) => {
+            const claveCampana = c.campana;
             const kCampana = `c:${claveCampana}`;
             const nodo = arbol.get(claveCampana);
             return (
-              <li key={claveCampana}>
+              <li key={`${claveCampana}-${i}`}>
                 <button
                   onClick={() => nodo && toggle(kCampana)}
                   disabled={!nodo}

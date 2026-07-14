@@ -23,6 +23,16 @@ export default function AnuncioProyectos({
 }) {
   const q = useProyectosDeAnuncio(adId, rango);
 
+  // Sin ad_id no hay forma de pedir el desglose (el endpoint filtra por
+  // ese identificador): pasa con leads de atribución incompleta, no es
+  // "sin proyectos declarados"
+  if (!adId)
+    return (
+      <p className="py-2 text-xs text-gray-400">
+        Este lead no tiene ad_id registrado — no se puede consultar su proyecto de interés por anuncio.
+      </p>
+    );
+
   if (q.isLoading)
     return <p className="py-2 text-xs text-gray-400">Cargando proyectos...</p>;
   if (q.isError)

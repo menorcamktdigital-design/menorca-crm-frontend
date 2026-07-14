@@ -157,16 +157,19 @@ export interface NodoCampana {
   adsets: NodoAdset[];
 }
 
+// Agrupa por nombre de campaña (`campana`), no por campaignId: /stats/
+// campanas trae campaign_id pero /stats/anuncios a veces no lo incluye
+// (campo intermitente del backend), así que campaignId no es una clave de
+// unión confiable entre ambos endpoints. El nombre de texto sí lo es.
 export function arbolAnuncios(anuncios: Anuncio[]): NodoCampana[] {
-  const porCampana = new Map<string, { campana: string; adsets: Map<string, Anuncio[]> }>();
+  const porCampana = new Map<string, { campaignId: string; adsets: Map<string, Anuncio[]> }>();
   for (const a of anuncios) {
-    const clave = a.campaignId || a.campana;
-    const entrada = porCampana.get(clave) ?? { campana: a.campana, adsets: new Map<string, Anuncio[]>() };
-    porCampana.set(clave, entrada);
+    const entrada = porCampana.get(a.campana) ?? { campaignId: a.campaignId, adsets: new Map<string, Anuncio[]>() };
+    porCampana.set(a.campana, entrada);
     entrada.adsets.set(a.adset, [...(entrada.adsets.get(a.adset) ?? []), a]);
   }
   return [...porCampana.entries()]
-    .map(([campaignId, { campana, adsets }]) => {
+    .map(([campana, { campaignId, adsets }]) => {
       const nodos = [...adsets.entries()]
         .map(([adset, lista]) => ({
           adset,
