@@ -1,4 +1,4 @@
-import type { Stats, StatsActividad, StatsProyecto } from "@/types";
+import type { RangoFechas, Stats, StatsActividad, StatsProyecto } from "@/types";
 import { OTROS, SIN_PROYECTO, esOficial, proyectosDeTexto } from "@/lib/proyectos";
 import { ESTADO_CHART, MUTED } from "./chartTheme";
 
@@ -80,16 +80,29 @@ export function plazasDesdeStats(rows: StatsProyecto[]): Map<string, number> {
   return conteos;
 }
 
-// Escala fija de los últimos 14 días (con clave local yyyy-mm-dd para
-// cruzar contra fechas del backend sin corrimiento por zona horaria)
-function escalaDias(): { key: string; label: string; leads: number; derivados: number }[] {
+// Escala de días con clave local yyyy-mm-dd para cruzar contra fechas del
+// backend sin corrimiento por zona horaria. Sin rango: últimos 14 días.
+// Con rango sigue desde/hasta (solo "desde" → hasta hoy; solo "hasta" →
+// 14 días hacia atrás). Tope de 366 puntos contados desde el final para
+// no degradar el render con rangos absurdos.
+function escalaDias(
+  rango?: RangoFechas
+): { key: string; label: string; leads: number; derivados: number }[] {
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
+  const parse = (s: string) => new Date(`${s}T00:00:00`);
+
+  const fin = rango?.hasta ? parse(rango.hasta) : hoy;
+  const inicio = rango?.desde ? parse(rango.desde) : new Date(fin);
+  if (!rango?.desde) inicio.setDate(fin.getDate() - (DIAS_ACTIVIDAD - 1));
+
+  const minimo = new Date(fin);
+  minimo.setDate(fin.getDate() - 365);
+  if (inicio < minimo) inicio.setTime(minimo.getTime());
+
+  const pad = (n: number) => String(n).padStart(2, "0");
   const dias = [];
-  for (let i = DIAS_ACTIVIDAD - 1; i >= 0; i--) {
-    const f = new Date(hoy);
-    f.setDate(hoy.getDate() - i);
-    const pad = (n: number) => String(n).padStart(2, "0");
+  for (const f = new Date(inicio); f <= fin; f.setDate(f.getDate() + 1)) {
     dias.push({
       key: `${f.getFullYear()}-${pad(f.getMonth() + 1)}-${pad(f.getDate())}`,
       label: f.toLocaleDateString("es-PE", { day: "2-digit", month: "short" }),
@@ -100,8 +113,11 @@ function escalaDias(): { key: string; label: string; leads: number; derivados: n
   return dias;
 }
 //calculo de ratio de derivados/conversaciones del día
-export function actividadDesdeStats(rows: StatsActividad[]): DiaActividad[] {
-  const dias = escalaDias();
+export function actividadDesdeStats(
+  rows: StatsActividad[],
+  rango?: RangoFechas
+): DiaActividad[] {
+  const dias = escalaDias(rango);
   for (const r of rows) {
     const dia = dias.find((d) => d.key === r.fecha.slice(0, 10));
     if (!dia) continue;

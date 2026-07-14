@@ -5,11 +5,19 @@ import { useTodosContactos } from "@/hooks/useTodosContactos";
 import { descargarCSV } from "@/lib/csv";
 import { COLUMNAS_CSV, filasCSV } from "@/lib/leads";
 import { perteneceAProyecto } from "@/lib/proyectos";
+import type { RangoFechas } from "@/types";
 
 // La base completa se descarga recién al hacer clic (el dashboard ya no la
-// necesita para las gráficas: usa los endpoints agregados)
-export default function ExportButton({ plaza }: { plaza: string }) {
-  const { refetch } = useTodosContactos(false);
+// necesita para las gráficas: usa los endpoints agregados). El rango de
+// fechas se filtra en el servidor, igual que en las gráficas.
+export default function ExportButton({
+  plaza,
+  rango,
+}: {
+  plaza: string;
+  rango?: RangoFechas;
+}) {
+  const { refetch } = useTodosContactos(false, rango);
   const [descargando, setDescargando] = useState(false);
 
   const exportar = async () => {
@@ -20,8 +28,10 @@ export default function ExportButton({ plaza }: { plaza: string }) {
       const contactos =
         plaza === "todas" ? base : base.filter((c) => perteneceAProyecto(c, plaza));
       const fecha = new Date().toISOString().slice(0, 10);
-      const sufijo =
+      let sufijo =
         plaza === "todas" ? "" : `_${plaza.replace(/[^\w-]+/g, "-").toLowerCase()}`;
+      if (rango?.desde || rango?.hasta)
+        sufijo += `_${rango.desde || "inicio"}_a_${rango.hasta || "hoy"}`;
       descargarCSV(`leads_menorca${sufijo}_${fecha}.csv`, COLUMNAS_CSV, filasCSV(contactos));
     } finally {
       setDescargando(false);

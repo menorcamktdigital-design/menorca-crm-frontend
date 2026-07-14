@@ -7,6 +7,8 @@ import { coincideBusqueda, coincideEstado } from "@/lib/leads";
 import { OTROS, PROYECTOS, SIN_PROYECTO, perteneceAProyecto } from "@/lib/proyectos";
 import { useUIStore } from "@/store/uiStore";
 import SearchSelect from "@/components/ui/SearchSelect";
+import DateRangeFilter from "@/components/ui/DateRangeFilter";
+import type { RangoFechas } from "@/types";
 import FilterChips from "./FilterChips";
 import LeadsTable from "./LeadsTable";
 import LeadsExport from "./LeadsExport";
@@ -27,15 +29,17 @@ export default function LeadsPanel() {
   const [pagina, setPagina] = useState(1);
   const [proyecto, setProyecto] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
+  const [rango, setRango] = useState<RangoFechas>({});
 
   // proyecto_interes es texto libre que el backend no sabe normalizar, y la
   // API tampoco expone búsqueda por número/nombre: ambos filtros se resuelven
-  // en el cliente sobre la base completa.
+  // en el cliente sobre la base completa. El rango de fechas sí va al
+  // servidor (?desde=&hasta= sobre creado_en) en ambos caminos.
   const enCliente = proyecto !== "todos" || busqueda.trim() !== "";
 
   // Al cambiar cualquier filtro se vuelve a la primera página (ajuste de
   // estado durante el render, sin efecto: evita el render extra en cascada)
-  const filtros = `${filtroLead}|${proyecto}|${busqueda}`;
+  const filtros = `${filtroLead}|${proyecto}|${busqueda}|${rango.desde ?? ""}|${rango.hasta ?? ""}`;
   const [prevFiltros, setPrevFiltros] = useState(filtros);
   if (prevFiltros !== filtros) {
     setPrevFiltros(filtros);
@@ -46,10 +50,14 @@ export default function LeadsPanel() {
   const { data, isLoading, isPlaceholderData } = useContactosPagina(
     pagina,
     filtroLead === "todos" ? undefined : filtroLead,
-    !enCliente
+    !enCliente,
+    rango
   );
 
-  const { data: base = [], isLoading: cargandoBase } = useTodosContactos(enCliente);
+  const { data: base = [], isLoading: cargandoBase } = useTodosContactos(
+    enCliente,
+    rango
+  );
 
   const filtradosCliente = useMemo(() => {
     if (!enCliente) return [];
@@ -142,6 +150,7 @@ export default function LeadsPanel() {
             onChange={setProyecto}
             opciones={OPCIONES_PROYECTO}
           />
+          <DateRangeFilter valor={rango} onChange={setRango} />
           <LeadsExport />
         </div>
       </div>

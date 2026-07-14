@@ -1,16 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
-import type { Stats } from "@/types";
+import type { RangoFechas, Stats } from "@/types";
 
-// proyecto: filtra los totales en el backend ("Sin proyecto" incluido)
-export function useStats(proyecto?: string) {
+// Arma los query params comunes de filtro (solo los que tienen valor)
+export function paramsFiltro(proyecto?: string, rango?: RangoFechas) {
+  return {
+    ...(proyecto && { proyecto }),
+    ...(rango?.desde && { desde: rango.desde }),
+    ...(rango?.hasta && { hasta: rango.hasta }),
+  };
+}
+
+// proyecto y rango de fechas se filtran en el backend
+// ("Sin proyecto" incluido; fechas sobre creado_en)
+export function useStats(proyecto?: string, rango?: RangoFechas) {
   return useQuery<Stats>({
-    queryKey: ["stats", proyecto ?? "todas"],
+    queryKey: ["stats", proyecto ?? "todas", rango?.desde ?? "", rango?.hasta ?? ""],
     // Los conteos llegan como string (COUNT de Postgres): se convierten acá
     // para que todo lo que consuma stats reciba números de verdad
     queryFn: () =>
       api
-        .get("/api/crm/stats", { params: proyecto ? { proyecto } : undefined })
+        .get("/api/crm/stats", { params: paramsFiltro(proyecto, rango) })
         .then((r) => ({
           total: Number(r.data.total) || 0,
           conversando: Number(r.data.conversando) || 0,

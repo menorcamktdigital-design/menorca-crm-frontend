@@ -23,6 +23,14 @@ export interface Mensaje {
   fecha: string; // ISO date
 }
 
+// Filtro por fecha (YYYY-MM-DD, hasta inclusivo). El backend lo aplica
+// sobre creado_en (/stats, /stats/proyectos, /contactos) y sobre la
+// actividad diaria (/stats/actividad). Vacío/undefined = sin filtro.
+export interface RangoFechas {
+  desde?: string;
+  hasta?: string;
+}
+
 export interface Stats {
   total: number;
   conversando: number;

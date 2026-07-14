@@ -19,14 +19,20 @@ const COLOR_LEADS = "#667781"; // total del día (neutro)
 const COLOR_DERIV = ACCENT; // subconjunto derivado (verde marca)
 const COLOR_RATIO = "#eda100"; // % derivación (eje derecho, ámbar de la marca)
 
-// Serie de los últimos 14 días: conversaciones con actividad ese día,
-// cuántas quedaron derivadas y el ratio diario derivados/conversaciones
-// (ver datos.ts para las dos fuentes posibles)
-export default function ActividadChart({ dias }: { dias: DiaActividad[] }) {
+// Serie por día: conversaciones con actividad ese día, cuántas quedaron
+// derivadas y el ratio diario derivados/conversaciones. periodo describe
+// el rango mostrado (default: últimos 14 días).
+export default function ActividadChart({
+  dias,
+  periodo,
+}: {
+  dias: DiaActividad[];
+  periodo?: string;
+}) {
   return (
     <ChartCard
       titulo="Conversaciones vs. derivados por día"
-      subtitulo={`Conversaciones activas en el día, cuántas quedaron derivadas y el ratio de derivación · últimos ${DIAS_ACTIVIDAD} días`}
+      subtitulo={`Conversaciones activas en el día, cuántas quedaron derivadas y el ratio de derivación · ${periodo ?? `últimos ${DIAS_ACTIVIDAD} días`}`}
     >
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">

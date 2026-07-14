@@ -1,6 +1,6 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
-import type { Contacto, EstadoLead } from "@/types";
+import type { Contacto, EstadoLead, RangoFechas } from "@/types";
 
 const PAGE = 60;
 
@@ -34,10 +34,22 @@ export const PAGINA = 50;
 
 // Página fija de 50 para la tabla de leads. Pide 51 filas: si llegan más
 // de 50 hay página siguiente (la API no devuelve el total).
-export function useContactosPagina(pagina: number, estado?: EstadoLead, enabled = true) {
+// estado y rango de fechas (creado_en) se filtran en el servidor.
+export function useContactosPagina(
+  pagina: number,
+  estado?: EstadoLead,
+  enabled = true,
+  rango?: RangoFechas
+) {
   return useQuery({
     enabled,
-    queryKey: ["contactos-pagina", estado ?? "todos", pagina],
+    queryKey: [
+      "contactos-pagina",
+      estado ?? "todos",
+      rango?.desde ?? "",
+      rango?.hasta ?? "",
+      pagina,
+    ],
     queryFn: () =>
       api
         .get("/api/crm/contactos", {
@@ -45,6 +57,8 @@ export function useContactosPagina(pagina: number, estado?: EstadoLead, enabled 
             limit: PAGINA + 1,
             offset: (pagina - 1) * PAGINA,
             ...(estado && { estado }),
+            ...(rango?.desde && { desde: rango.desde }),
+            ...(rango?.hasta && { hasta: rango.hasta }),
           },
         })
         .then((r) => {

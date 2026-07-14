@@ -17,6 +17,8 @@ import PlazaBar from "@/components/dashboard/PlazaBar";
 import ActividadChart from "@/components/dashboard/ActividadChart";
 import PlazaFilter from "@/components/dashboard/PlazaFilter";
 import ExportButton from "@/components/dashboard/ExportButton";
+import DateRangeFilter from "@/components/ui/DateRangeFilter";
+import type { RangoFechas } from "@/types";
 
 // Sin "Otros": el filtro del backend matchea contra el texto del proyecto
 // y no puede expresar "texto no reconocido"
@@ -24,13 +26,16 @@ const PLAZAS = [...PROYECTOS, SIN_PROYECTO];
 
 export default function DashboardPage() {
   const [plaza, setPlaza] = useState("todas");
+  const [rango, setRango] = useState<RangoFechas>({});
   // Con filtro activo, stats y actividad se filtran en el backend
-  // (?proyecto=...); "Leads por plaza" siempre muestra la base completa
+  // (?proyecto=&desde=&hasta=); "Leads por plaza" no filtra por plaza
+  // (muestra todas) pero sí respeta el rango de fechas
   const proyecto = plaza === "todas" ? undefined : plaza;
+  const rangoActivo = Boolean(rango.desde || rango.hasta);
 
-  const stats = useStats(proyecto);
-  const statsProyectos = useStatsProyectos();
-  const statsActividad = useStatsActividad(proyecto);
+  const stats = useStats(proyecto, rango);
+  const statsProyectos = useStatsProyectos(rango);
+  const statsActividad = useStatsActividad(proyecto, rango);
 
   const valores = stats.data && tilesDesdeStats(stats.data);
   const donut = stats.data ? donutDesdeStats(stats.data) : [];
@@ -42,8 +47,8 @@ export default function DashboardPage() {
   );
 
   const dias = useMemo(
-    () => actividadDesdeStats(statsActividad.data ?? []),
-    [statsActividad.data]
+    () => actividadDesdeStats(statsActividad.data ?? [], rango),
+    [statsActividad.data, rango]
   );
 
   const isError =
@@ -61,8 +66,9 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <DateRangeFilter valor={rango} onChange={setRango} />
             <PlazaFilter plazas={PLAZAS} valor={plaza} onChange={setPlaza} />
-            <ExportButton plaza={plaza} />
+            <ExportButton plaza={plaza} rango={rango} />
           </div>
         </div>
 
@@ -80,7 +86,10 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-4">
-          <ActividadChart dias={dias} />
+          <ActividadChart
+            dias={dias}
+            periodo={rangoActivo ? "rango seleccionado" : undefined}
+          />
         </div>
       </div>
     </main>
