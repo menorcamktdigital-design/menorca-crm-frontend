@@ -26,6 +26,7 @@ export function useStats(proyecto?: string, rango?: RangoFechas) {
           conversando: Number(r.data.conversando) || 0,
           derivados: Number(r.data.derivados) || 0,
           visitas: Number(r.data.visitas) || 0,
+          recontactos: Number(r.data.recontactos) || 0,
         })),
     refetchInterval: 30_000,
   });

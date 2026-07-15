@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useContactos, flatContactos } from "@/hooks/useContactos";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useUIStore } from "@/store/uiStore";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
@@ -23,6 +24,14 @@ function formatHora(iso: string | null): string {
 }
 
 export default function ContactList() {
+  const busqueda = useUIStore((s) => s.busqueda);
+  const numeroActivo = useUIStore((s) => s.numeroActivo);
+  const setNumeroActivo = useUIStore((s) => s.setNumeroActivo);
+  const setTab = useUIStore((s) => s.setTab);
+
+  const busquedaDebounced = useDebounce(busqueda, 400);
+  const q = busquedaDebounced.trim();
+
   const {
     data,
     fetchNextPage,
@@ -31,28 +40,9 @@ export default function ContactList() {
     isFetchingNextPage,
     isLoading,
     isError,
-  } = useContactos();
-  const busqueda = useUIStore((s) => s.busqueda);
-  const numeroActivo = useUIStore((s) => s.numeroActivo);
-  const setNumeroActivo = useUIStore((s) => s.setNumeroActivo);
-  const setTab = useUIStore((s) => s.setTab);
+  } = useContactos(undefined, q || undefined);
 
-  const contactos = flatContactos(data?.pages);
-
-  const q = busqueda.trim().toLowerCase();
-  const filtrados = q
-    ? contactos.filter(
-        (c) =>
-          (c.nombre || "").toLowerCase().includes(q) || c.numero.includes(q)
-      )
-    : contactos;
-
-  // Si la búsqueda no encuentra nada localmente, seguir cargando páginas
-  useEffect(() => {
-    if (q && filtrados.length === 0 && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [q, filtrados.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const filtrados = flatContactos(data?.pages);
 
   // Scroll infinito: cargar más al llegar al final
   const sentinelRef = useRef<HTMLDivElement>(null);

@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 type Tab = "chats" | "leads";
 
-export type FiltroLead = "todos" | "en_conversacion" | "derivado";
+export type FiltroLead = "todos" | "en_conversacion" | "recontacto" | "derivado";
 
 interface UIState {
   tab: Tab;

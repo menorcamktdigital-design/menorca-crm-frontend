@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useContactosPagina, PAGINA } from "@/hooks/useContactos";
 import { useTodosContactos } from "@/hooks/useTodosContactos";
+import { useDebounce } from "@/hooks/useDebounce";
 import { coincideBusqueda, coincideEstado } from "@/lib/leads";
 import { OTROS, PROYECTOS, SIN_PROYECTO, perteneceAProyecto } from "@/lib/proyectos";
 import { useUIStore } from "@/store/uiStore";
@@ -31,15 +32,18 @@ export default function LeadsPanel() {
   const [busqueda, setBusqueda] = useState("");
   const [rango, setRango] = useState<RangoFechas>({});
 
-  // proyecto_interes es texto libre que el backend no sabe normalizar, y la
-  // API tampoco expone búsqueda por número/nombre: ambos filtros se resuelven
-  // en el cliente sobre la base completa. El rango de fechas sí va al
-  // servidor (?desde=&hasta= sobre creado_en) en ambos caminos.
-  const enCliente = proyecto !== "todos" || busqueda.trim() !== "";
+  const busquedaDebounced = useDebounce(busqueda, 400);
+  const q = busquedaDebounced.trim();
+
+  // proyecto_interes es texto libre que el backend no sabe normalizar: ese
+  // filtro se resuelve en el cliente sobre la base completa. La búsqueda por
+  // número/nombre (?q=) y el rango de fechas (?desde=&hasta=) sí van al
+  // servidor en ambos caminos.
+  const enCliente = proyecto !== "todos";
 
   // Al cambiar cualquier filtro se vuelve a la primera página (ajuste de
   // estado durante el render, sin efecto: evita el render extra en cascada)
-  const filtros = `${filtroLead}|${proyecto}|${busqueda}|${rango.desde ?? ""}|${rango.hasta ?? ""}`;
+  const filtros = `${filtroLead}|${proyecto}|${q}|${rango.desde ?? ""}|${rango.hasta ?? ""}`;
   const [prevFiltros, setPrevFiltros] = useState(filtros);
   if (prevFiltros !== filtros) {
     setPrevFiltros(filtros);
@@ -51,12 +55,14 @@ export default function LeadsPanel() {
     pagina,
     filtroLead === "todos" ? undefined : filtroLead,
     !enCliente,
-    rango
+    rango,
+    q || undefined
   );
 
   const { data: base = [], isLoading: cargandoBase } = useTodosContactos(
     enCliente,
-    rango
+    rango,
+    q || undefined
   );
 
   const filtradosCliente = useMemo(() => {

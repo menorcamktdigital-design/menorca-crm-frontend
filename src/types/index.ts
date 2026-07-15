@@ -4,7 +4,7 @@ export type EstadoLead =
   | "derivado"
   | "frio"
   | "visita_agendada"
-  | "recontacto"; // fallback legacy — mapear a 'derivado' en UI
+  | "recontacto";
 
 export interface Contacto {
   numero: string;
@@ -36,6 +36,7 @@ export interface Stats {
   conversando: number;
   derivados: number;
   visitas: number;
+  recontactos?: number;
 }
 
 // GET /api/crm/stats/proyectos — conteo por proyecto agrupado en el backend
@@ -43,6 +44,7 @@ export interface Stats {
 export interface StatsProyecto {
   proyecto_interes: string;
   total: string;
+  derivados: string;
 }
 
 // GET /api/crm/stats/actividad — últimos 14 días calculados en el backend
@@ -60,12 +62,11 @@ export interface Visita {
 }
 
 // Configuración de badge por estado
-// 'recontacto' es legacy en BD → se muestra como 'Derivado'
 export const BADGE_CONFIG: Record<string, { label: string; className: string }> = {
   en_conversacion: { label: "Conversando", className: "bg-amber-100 text-amber-800" },
   derivado: { label: "Derivado", className: "bg-green-100 text-green-800" },
   frio: { label: "Frío", className: "bg-slate-100 text-slate-600" },
   visita_agendada: { label: "Visita", className: "bg-blue-100 text-blue-800" },
   nuevo: { label: "Nuevo", className: "bg-slate-100 text-slate-600" },
-  recontacto: { label: "Derivado", className: "bg-green-100 text-green-800" },
+  recontacto: { label: "Recontacto", className: "bg-orange-100 text-orange-800" },
 };

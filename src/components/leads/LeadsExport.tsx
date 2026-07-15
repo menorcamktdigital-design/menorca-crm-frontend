@@ -10,6 +10,7 @@ import SearchSelect from "@/components/ui/SearchSelect";
 const ESTADOS = [
   { id: "todos", label: "Todos" },
   { id: "en_conversacion", label: "Conversando" },
+  { id: "recontacto", label: "Recontactos" },
   { id: "derivado", label: "Derivados" },
   { id: "visita_agendada", label: "Visita agendada" },
 ];

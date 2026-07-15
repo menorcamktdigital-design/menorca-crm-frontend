@@ -10,15 +10,20 @@ function extraerFilas(d: unknown): Contacto[] {
     : (Object.values(d as object).find(Array.isArray) as Contacto[]) || [];
 }
 
-// estado se filtra en el servidor (?estado=...) para que el scroll
+// estado y búsqueda (?q=) se filtran en el servidor para que el scroll
 // infinito pagine solo lo filtrado en vez de descargar toda la base.
-export function useContactos(estado?: EstadoLead) {
+export function useContactos(estado?: EstadoLead, q?: string) {
   return useInfiniteQuery<Contacto[]>({
-    queryKey: ["contactos", estado ?? "todos"],
+    queryKey: ["contactos", estado ?? "todos", q ?? ""],
     queryFn: ({ pageParam }) =>
       api
         .get("/api/crm/contactos", {
-          params: { limit: PAGE, offset: pageParam, ...(estado && { estado }) },
+          params: {
+            limit: PAGE,
+            offset: pageParam,
+            ...(estado && { estado }),
+            ...(q && { q }),
+          },
         })
         .then((r) => extraerFilas(r.data)),
     getNextPageParam: (lastPage, _allPages, lastPageParam) => {
@@ -34,12 +39,13 @@ export const PAGINA = 50;
 
 // Página fija de 50 para la tabla de leads. Pide 51 filas: si llegan más
 // de 50 hay página siguiente (la API no devuelve el total).
-// estado y rango de fechas (creado_en) se filtran en el servidor.
+// estado, búsqueda (?q=) y rango de fechas (creado_en) se filtran en el servidor.
 export function useContactosPagina(
   pagina: number,
   estado?: EstadoLead,
   enabled = true,
-  rango?: RangoFechas
+  rango?: RangoFechas,
+  q?: string
 ) {
   return useQuery({
     enabled,
@@ -48,6 +54,7 @@ export function useContactosPagina(
       estado ?? "todos",
       rango?.desde ?? "",
       rango?.hasta ?? "",
+      q ?? "",
       pagina,
     ],
     queryFn: () =>
@@ -59,6 +66,7 @@ export function useContactosPagina(
             ...(estado && { estado }),
             ...(rango?.desde && { desde: rango.desde }),
             ...(rango?.hasta && { hasta: rango.hasta }),
+            ...(q && { q }),
           },
         })
         .then((r) => {

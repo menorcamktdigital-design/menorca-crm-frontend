@@ -12,6 +12,7 @@ export interface ValoresTiles {
   conversando: number;
   derivados: number;
   visitas: number;
+  recontactos: number;
 }
 
 export interface DatoDonut {
@@ -37,17 +38,19 @@ export function tilesDesdeStats(s: Stats): ValoresTiles {
     conversando: s.conversando,
     derivados: s.derivados,
     visitas: s.visitas ?? 0,
+    recontactos: s.recontactos ?? 0,
   };
 }
 
 // /stats no desglosa 'nuevo' ni 'frío': lo que no es conversando/derivado/
-// visita se agrupa en una porción neutra "Otros"
+// visita/recontacto se agrupa en una porción neutra "Otros"
 export function donutDesdeStats(s: Stats): DatoDonut[] {
   const por: Record<string, number> = {
     en_conversacion: s.conversando,
     derivado: s.derivados,
     visita_agendada: s.visitas ?? 0,
   };
+  if (s.recontactos !== undefined) por.recontacto = s.recontactos;
   const datos = ESTADO_CHART.filter((e) => e.key in por).map((e) => ({
     ...e,
     valor: por[e.key],
@@ -57,25 +60,34 @@ export function donutDesdeStats(s: Stats): DatoDonut[] {
   return datos.filter((d) => d.valor > 0);
 }
 
+export interface ConteoPlaza {
+  total: number;
+  derivados: number;
+}
+
 // El backend agrupa por el texto libre tal cual está en la BD: acá cada
 // grupo se mapea a nombres oficiales (un texto con varios proyectos suma
 // su total en cada uno, igual que el conteo por contacto)
-export function plazasDesdeStats(rows: StatsProyecto[]): Map<string, number> {
-  const conteos = new Map<string, number>();
-  const sumar = (k: string, n: number) => conteos.set(k, (conteos.get(k) || 0) + n);
+export function plazasDesdeStats(rows: StatsProyecto[]): Map<string, ConteoPlaza> {
+  const conteos = new Map<string, ConteoPlaza>();
+  const sumar = (k: string, total: number, derivados: number) => {
+    const actual = conteos.get(k) ?? { total: 0, derivados: 0 };
+    conteos.set(k, { total: actual.total + total, derivados: actual.derivados + derivados });
+  };
   for (const r of rows) {
     const n = Number(r.total) || 0;
+    const d = Number(r.derivados) || 0;
     const raw = r.proyecto_interes?.trim();
     if (!raw || raw === SIN_PROYECTO) {
-      sumar(SIN_PROYECTO, n);
+      sumar(SIN_PROYECTO, n, d);
       continue;
     }
     const proyectos = proyectosDeTexto(raw);
     if (proyectos.length === 0) {
-      sumar(SIN_PROYECTO, n);
+      sumar(SIN_PROYECTO, n, d);
       continue;
     }
-    for (const p of proyectos) sumar(esOficial(p) ? p : OTROS, n);
+    for (const p of proyectos) sumar(esOficial(p) ? p : OTROS, n, d);
   }
   return conteos;
 }

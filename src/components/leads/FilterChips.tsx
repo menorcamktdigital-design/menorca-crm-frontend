@@ -5,6 +5,7 @@ import { useUIStore, type FiltroLead } from "@/store/uiStore";
 const CHIPS: { id: FiltroLead; label: string }[] = [
   { id: "todos", label: "Todos" },
   { id: "en_conversacion", label: "Conversando" },
+  { id: "recontacto", label: "Recontactos" },
   { id: "derivado", label: "Derivados" },
 ];
 
