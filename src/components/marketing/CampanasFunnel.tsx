@@ -60,12 +60,14 @@ export default function CampanasFunnel({
   campanas,
   anuncios,
   rango,
+  proyecto,
   cargando,
   error,
 }: {
   campanas: Campana[];
   anuncios: Anuncio[];
   rango?: RangoFechas;
+  proyecto?: string;
   cargando: boolean;
   error: boolean;
 }) {
@@ -174,7 +176,7 @@ export default function CampanasFunnel({
                                 </button>
                                 {abiertos.has(kAnuncio) && (
                                   <div className="border-l-2 border-gray-100 pb-2 pl-10">
-                                    <AnuncioProyectos adId={an.adId} rango={rango} totalLeads={an.leads} />
+                                    <AnuncioProyectos adId={an.adId} rango={rango} totalLeads={an.leads} proyecto={proyecto} />
                                   </div>
                                 )}
                               </div>

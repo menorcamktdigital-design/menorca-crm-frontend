@@ -6,21 +6,13 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useUIStore } from "@/store/uiStore";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
+import { claveDiaLima, formatFechaCorta, formatHora as formatHoraLima } from "@/lib/fecha";
 import type { Contacto } from "@/types";
 
 function formatHora(iso: string | null): string {
   if (!iso) return "";
-  const fecha = new Date(iso);
-  const hoy = new Date();
-  const esHoy = fecha.toDateString() === hoy.toDateString();
-  if (esHoy) {
-    return fecha.toLocaleTimeString("es-PE", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  }
-  return fecha.toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit" });
+  const esHoy = claveDiaLima(iso) === claveDiaLima(new Date().toISOString());
+  return esHoy ? formatHoraLima(iso) : formatFechaCorta(iso);
 }
 
 export default function ContactList() {

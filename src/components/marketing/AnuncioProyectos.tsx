@@ -11,17 +11,21 @@ import type { RangoFechas } from "@/types";
 // expandir, así el fetch ocurre recién ahí. `totalLeads` es el funnel real
 // del anuncio (de /stats/anuncios o /stats/creativos): sirve para detectar
 // cuándo la suma del desglose lo supera porque algún lead declaró más de
-// un proyecto.
+// un proyecto. `proyecto` es el filtro de plaza activo en la página (si
+// hay uno): se propaga al desglose para que quede alineado con totalLeads,
+// que ya viene filtrado por ese mismo proyecto.
 export default function AnuncioProyectos({
   adId,
   rango,
   totalLeads,
+  proyecto,
 }: {
   adId: string;
   rango?: RangoFechas;
   totalLeads: number;
+  proyecto?: string;
 }) {
-  const q = useProyectosDeAnuncio(adId, rango);
+  const q = useProyectosDeAnuncio(adId, proyecto, rango);
 
   // Sin ad_id no hay forma de pedir el desglose (el endpoint filtra por
   // ese identificador): pasa con leads de atribución incompleta, no es
@@ -58,10 +62,11 @@ export default function AnuncioProyectos({
     .reduce((acc, p) => acc + p.total, 0);
   // La suma puede superar el total por dos motivos distintos: un lead que
   // mencionó 2+ proyectos reales (normal, mismo criterio que "Leads por
-  // plaza" en el dashboard), o un lead contado a la vez como "Sin
-  // proyecto" y en un proyecto real (inconsistencia del backend: debería
-  // quedarse con un solo estado, no duplicar el conteo). Se muestran por
-  // separado porque una es esperable y la otra no.
+  // plaza" en el dashboard), o un mismo contacto con dos filas en la BD
+  // (una con proyecto_interes seteado y otra vacía). Como `proyecto` ya se
+  // propaga al desglose, esto solo puede saltar por datos duplicados
+  // reales, no por comparar un total filtrado contra una suma sin filtrar.
+  // Se muestran por separado porque una es esperable y la otra no.
   const excesoPorMultiproyecto = Math.max(0, soloProyectosReales - totalLeads);
   const excesoPorDuplicado = sumaProyectos - totalLeads - excesoPorMultiproyecto;
 

@@ -88,22 +88,27 @@ export function useStatsMultitouch(proyecto?: string, rango?: RangoFechas) {
 }
 
 // Proyectos de interés de los leads de un anuncio. Se pide bajo demanda
-// (al expandir un anuncio) y solo con el rango de fechas: filtrar además
-// por proyecto dejaría el desglose con una sola fila, sin información.
+// (al expandir un anuncio) y con el rango de fechas. Si hay un filtro de
+// plaza activo se propaga también aquí: totalLeads (de /stats/anuncios o
+// /stats/creativos) ya viene filtrado por ese proyecto, así que el
+// desglose debe filtrarse igual o "Sin proyecto" infla la suma con leads
+// que el total de arriba ya excluyó (no es un duplicado, son preguntas
+// distintas si no se alinean los filtros).
 // Filtra por ad_id (identificador único real de Meta), no por el nombre
 // de texto del anuncio, que puede repetirse entre dos anuncios distintos.
-export function useProyectosDeAnuncio(adId: string, rango?: RangoFechas) {
+export function useProyectosDeAnuncio(adId: string, proyecto?: string, rango?: RangoFechas) {
   return useQuery<ProyectoDeAnuncio[]>({
     queryKey: [
       "stats-anuncio-proyectos",
       adId,
+      proyecto ?? "todas",
       rango?.desde ?? "",
       rango?.hasta ?? "",
     ],
     queryFn: () =>
       api
         .get("/api/crm/stats/anuncios/proyectos", {
-          params: { ad_id: adId, ...paramsFiltro(undefined, rango) },
+          params: { ad_id: adId, ...paramsFiltro(proyecto, rango) },
         })
         .then((r) => proyectosDeAnuncioDeApi(filas(r.data))),
     enabled: adId.length > 0,

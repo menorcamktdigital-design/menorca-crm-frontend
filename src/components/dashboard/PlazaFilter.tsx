@@ -1,25 +1,23 @@
 "use client";
 
-import SearchSelect from "@/components/ui/SearchSelect";
+import MultiSearchSelect from "@/components/ui/MultiSearchSelect";
 
 export default function PlazaFilter({
   plazas,
-  valor,
+  valores,
   onChange,
 }: {
   plazas: string[];
-  valor: string;
-  onChange: (v: string) => void;
+  valores: string[];
+  onChange: (v: string[]) => void;
 }) {
   return (
-    <SearchSelect
+    <MultiSearchSelect
       className="w-60"
-      valor={valor}
+      valores={valores}
       onChange={onChange}
-      opciones={[
-        { value: "todas", label: "Todas las plazas" },
-        ...plazas.map((p) => ({ value: p, label: p })),
-      ]}
+      placeholder="Todas las plazas"
+      opciones={plazas.map((p) => ({ value: p, label: p }))}
     />
   );
 }

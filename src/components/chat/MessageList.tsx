@@ -2,7 +2,18 @@
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useConversacion, flatMensajes } from "@/hooks/useConversacion";
+import { claveDiaLima, formatSeparadorDia } from "@/lib/fecha";
 import MessageBubble from "./MessageBubble";
+
+function SeparadorDia({ fecha }: { fecha: string }) {
+  return (
+    <div className="my-2 flex justify-center">
+      <span className="rounded-lg bg-white/80 px-3 py-1 text-xs font-medium text-gray-500 shadow-sm">
+        {formatSeparadorDia(fecha)}
+      </span>
+    </div>
+  );
+}
 
 export default function MessageList({ numero }: { numero: string }) {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
@@ -70,9 +81,15 @@ export default function MessageList({ numero }: { numero: string }) {
         </p>
       )}
       <div className="flex flex-col gap-2">
-        {mensajes.map((m, i) => (
-          <MessageBubble key={m.id ?? `${m.fecha}-${i}`} mensaje={m} />
-        ))}
+        {mensajes.map((m, i) => {
+          const diaCambia = i === 0 || claveDiaLima(m.fecha) !== claveDiaLima(mensajes[i - 1].fecha);
+          return (
+            <div key={m.id ?? `${m.fecha}-${i}`}>
+              {diaCambia && <SeparadorDia fecha={m.fecha} />}
+              <MessageBubble mensaje={m} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -69,10 +69,12 @@ function Media({ creativo }: { creativo: Creativo }) {
 function TarjetaCreativo({
   creativo,
   rango,
+  proyecto,
   nombreRepetido,
 }: {
   creativo: Creativo;
   rango?: RangoFechas;
+  proyecto?: string;
   nombreRepetido: boolean;
 }) {
   const [verProyectos, setVerProyectos] = useState(false);
@@ -147,7 +149,7 @@ function TarjetaCreativo({
 
       {verProyectos && (
         <div className="mt-1 border-t border-gray-100 pt-1">
-          <AnuncioProyectos adId={c.adId} rango={rango} totalLeads={c.leads} />
+          <AnuncioProyectos adId={c.adId} rango={rango} totalLeads={c.leads} proyecto={proyecto} />
         </div>
       )}
     </div>
@@ -161,11 +163,13 @@ function TarjetaCreativo({
 export default function CreativosGrid({
   creativos,
   rango,
+  proyecto,
   cargando,
   error,
 }: {
   creativos: Creativo[];
   rango?: RangoFechas;
+  proyecto?: string;
   cargando: boolean;
   error: boolean;
 }) {
@@ -187,6 +191,7 @@ export default function CreativosGrid({
               key={c.adId || `${c.anuncio}-${i}`}
               creativo={c}
               rango={rango}
+              proyecto={proyecto}
               nombreRepetido={nombresRepetidos.has(c.anuncio)}
             />
           ))}

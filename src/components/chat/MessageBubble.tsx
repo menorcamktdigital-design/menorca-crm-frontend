@@ -1,12 +1,5 @@
 import type { Mensaje } from "@/types";
-
-function formatHora(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-PE", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
+import { formatHora } from "@/lib/fecha";
 
 export default function MessageBubble({ mensaje }: { mensaje: Mensaje }) {
   const esIA = mensaje.rol === "assistant";

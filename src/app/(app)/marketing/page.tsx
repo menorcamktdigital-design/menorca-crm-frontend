@@ -26,9 +26,10 @@ const PLAZAS = [...PROYECTOS, SIN_PROYECTO];
 // qué campaña/anuncio/creativo los genera y cuántos toques necesitaron.
 // Todos los endpoints filtran en el backend (?proyecto=&desde=&hasta=).
 export default function MarketingPage() {
-  const [plaza, setPlaza] = useState("todas");
+  const [plazas, setPlazas] = useState<string[]>([]);
   const [rango, setRango] = useState<RangoFechas>({});
-  const proyecto = plaza === "todas" ? undefined : plaza;
+  // El backend acepta ?proyecto= con varios valores separados por coma
+  const proyecto = plazas.length > 0 ? plazas.join(",") : undefined;
 
   const fuentes = useStatsFuentes(proyecto, rango);
   const multitouch = useStatsMultitouch(proyecto, rango);
@@ -49,7 +50,7 @@ export default function MarketingPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <DateRangeFilter valor={rango} onChange={setRango} />
-            <PlazaFilter plazas={PLAZAS} valor={plaza} onChange={setPlaza} />
+            <PlazaFilter plazas={PLAZAS} valores={plazas} onChange={setPlazas} />
           </div>
         </div>
 
@@ -77,6 +78,7 @@ export default function MarketingPage() {
             campanas={campanas.data ?? []}
             anuncios={anuncios.data ?? []}
             rango={rango}
+            proyecto={proyecto}
             cargando={campanas.isLoading || anuncios.isLoading}
             error={campanas.isError}
           />
@@ -86,6 +88,7 @@ export default function MarketingPage() {
           <CreativosGrid
             creativos={creativos.data ?? []}
             rango={rango}
+            proyecto={proyecto}
             cargando={creativos.isLoading}
             error={creativos.isError}
           />

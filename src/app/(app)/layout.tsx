@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import NavRail from "@/components/layout/NavRail";
+import Modal from "@/components/ui/Modal";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <NavRail />
       {/* pb-14 deja espacio para la barra inferior en móvil */}
       <div className="h-full min-w-0 flex-1 pb-14 md:pb-0">{children}</div>
+      <Modal />
     </div>
   );
 }

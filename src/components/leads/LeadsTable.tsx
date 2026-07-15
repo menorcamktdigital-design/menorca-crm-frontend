@@ -1,21 +1,21 @@
 "use client";
 
-import { useUIStore } from "@/store/uiStore";
+import { useModalStore } from "@/store/modalStore";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
 import { proyectosDe } from "@/lib/proyectos";
+import { formatFechaHora } from "@/lib/fecha";
+import FichaContacto from "./FichaContacto";
 import type { Contacto } from "@/types";
 
-function formatFecha(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+// Valores reales de contactos.first_source_type (ver /stats/fuentes)
+const ORIGEN_LABEL: Record<string, string> = {
+  meta_ad: "Meta Ads",
+  direct: "Directo",
+};
+
+function origenDe(c: Contacto): string {
+  return (c.first_source_type && ORIGEN_LABEL[c.first_source_type]) || "Sin atribuir";
 }
 
 const TH = "px-4 py-3 font-semibold";
@@ -42,6 +42,9 @@ function SkeletonRows({ filas = 8 }: { filas?: number }) {
             <div className={`${SKELETON} h-3 w-32`} />
           </td>
           <td className="hidden px-4 py-3 lg:table-cell">
+            <div className={`${SKELETON} h-3 w-20`} />
+          </td>
+          <td className="hidden px-4 py-3 lg:table-cell">
             <div className={`${SKELETON} h-3 w-28`} />
           </td>
           <td className="hidden px-4 py-3 sm:table-cell">
@@ -60,12 +63,13 @@ export default function LeadsTable({
   leads: Contacto[];
   cargando?: boolean;
 }) {
-  const setNumeroActivo = useUIStore((s) => s.setNumeroActivo);
-  const setTab = useUIStore((s) => s.setTab);
+  const showModal = useModalStore((s) => s.showModal);
 
-  const abrirChat = (numero: string) => {
-    setNumeroActivo(numero);
-    setTab("chats");
+  const abrirFicha = (c: Contacto) => {
+    showModal(<FichaContacto numero={c.numero} />, {
+      title: c.nombre || c.numero,
+      widthClass: "max-w-md",
+    });
   };
 
   return (
@@ -77,6 +81,7 @@ export default function LeadsTable({
           <th className={TH}>Número</th>
           <th className={TH}>Estado</th>
           <th className={`${TH} hidden lg:table-cell`}>Proyecto</th>
+          <th className={`${TH} hidden lg:table-cell`}>Origen</th>
           <th className={`${TH} hidden lg:table-cell`}>Última actividad</th>
           <th className={`${TH} hidden text-right sm:table-cell`}>Msjs</th>
         </tr>
@@ -85,7 +90,7 @@ export default function LeadsTable({
         {cargando && <SkeletonRows />}
         {!cargando && leads.length === 0 && (
           <tr>
-            <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+            <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
               No hay leads con este filtro
             </td>
           </tr>
@@ -96,27 +101,19 @@ export default function LeadsTable({
               key={c.numero}
               className="border-b border-gray-100 transition-colors last:border-0 hover:bg-emerald-50/40"
             >
-              {/* Solo el nombre abre el chat: así el resto de la fila
-                  (número, proyecto...) se puede seleccionar y copiar.
-                  Es un <a> real para que el clic derecho / Ctrl+clic permita
-                  "abrir en otra pestaña"; el clic normal se intercepta y abre
-                  el chat en esta misma pestaña sin recargar. */}
+              {/* Solo el nombre abre la ficha: así el resto de la fila
+                  (número, proyecto...) se puede seleccionar y copiar. */}
               <td className="px-4 py-2.5">
-                <a
-                  href={`/conversaciones?chat=${encodeURIComponent(c.numero)}`}
-                  onClick={(e) => {
-                    if (e.ctrlKey || e.metaKey || e.shiftKey) return;
-                    e.preventDefault();
-                    abrirChat(c.numero);
-                  }}
-                  title="Abrir conversación"
+                <button
+                  onClick={() => abrirFicha(c)}
+                  title="Ver ficha del lead"
                   className="group flex cursor-pointer items-center gap-3 text-left"
                 >
                   <Avatar nombre={c.nombre} numero={c.numero} size="sm" />
                   <span className="font-medium text-gray-900 group-hover:text-[#00a884] group-hover:underline">
                     {c.nombre || "Sin nombre"}
                   </span>
-                </a>
+                </button>
               </td>
               {/* select-all: un clic selecciona el número completo para copiar */}
               <td className="px-4 py-2.5 text-gray-500 tabular-nums select-all">
@@ -128,8 +125,11 @@ export default function LeadsTable({
               <td className="hidden px-4 py-2.5 text-gray-500 lg:table-cell">
                 {proyectosDe(c).join(", ") || "—"}
               </td>
+              <td className="hidden px-4 py-2.5 text-gray-500 lg:table-cell">
+                {origenDe(c)}
+              </td>
               <td className="hidden px-4 py-2.5 whitespace-nowrap text-gray-500 lg:table-cell">
-                {formatFecha(c.ultima_actividad)}
+                {formatFechaHora(c.ultima_actividad)}
               </td>
               <td className="hidden px-4 py-2.5 text-right sm:table-cell">
                 <span className="inline-block min-w-7 rounded-full bg-gray-100 px-2 py-0.5 text-center text-xs font-medium text-gray-600">

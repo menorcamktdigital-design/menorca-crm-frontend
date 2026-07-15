@@ -1,6 +1,8 @@
 import { BADGE_CONFIG, type Contacto } from "@/types";
 import { proyectosDe } from "./proyectos";
 
+const TZ = "America/Lima";
+
 export function coincideEstado(c: Contacto, estado: string): boolean {
   if (estado === "todos") return true;
   return c.estado === estado;
@@ -41,6 +43,7 @@ export function filasCSV(contactos: Contacto[]) {
     estado: BADGE_CONFIG[c.estado]?.label || c.estado,
     ultima_actividad: c.ultima_actividad
       ? new Date(c.ultima_actividad).toLocaleString("es-PE", {
+          timeZone: TZ,
           day: "2-digit",
           month: "2-digit",
           year: "numeric",

@@ -25,12 +25,16 @@ import type { RangoFechas } from "@/types";
 const PLAZAS = [...PROYECTOS, SIN_PROYECTO];
 
 export default function DashboardPage() {
-  const [plaza, setPlaza] = useState("todas");
+  const [plazas, setPlazas] = useState<string[]>([]);
   const [rango, setRango] = useState<RangoFechas>({});
   // Con filtro activo, stats y actividad se filtran en el backend
-  // (?proyecto=&desde=&hasta=); "Leads por plaza" no filtra por plaza
-  // (muestra todas) pero sí respeta el rango de fechas
-  const proyecto = plaza === "todas" ? undefined : plaza;
+  // (?proyecto=&desde=&hasta=, acepta varios separados por coma);
+  // "Leads por plaza" no filtra por plaza (muestra todas) pero sí respeta
+  // el rango de fechas
+  const proyecto = plazas.length > 0 ? plazas.join(",") : undefined;
+  // PlazaBar solo resalta una plaza a la vez: con 0 o 2+ seleccionadas se
+  // ve la base completa sin resaltar ninguna
+  const plazaResaltada = plazas.length === 1 ? plazas[0] : undefined;
   const rangoActivo = Boolean(rango.desde || rango.hasta);
 
   const stats = useStats(proyecto, rango);
@@ -67,8 +71,8 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <DateRangeFilter valor={rango} onChange={setRango} />
-            <PlazaFilter plazas={PLAZAS} valor={plaza} onChange={setPlaza} />
-            <ExportButton plaza={plaza} rango={rango} />
+            <PlazaFilter plazas={PLAZAS} valores={plazas} onChange={setPlazas} />
+            <ExportButton plazas={plazas} rango={rango} />
           </div>
         </div>
 
@@ -82,7 +86,7 @@ export default function DashboardPage() {
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <EstadoDonut datos={donut} total={totalDonut} />
-          <PlazaBar conteos={conteosPlaza} seleccionada={proyecto} />
+          <PlazaBar conteos={conteosPlaza} seleccionada={plazaResaltada} />
         </div>
 
         <div className="mt-4">

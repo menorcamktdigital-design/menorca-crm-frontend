@@ -1,21 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
+import type { FiltrosLeads } from "./useContactos";
 import type { Contacto, RangoFechas } from "@/types";
 
-const LOTE = 200;
-const MAX = 5000;
+const LOTE = 500;
+const MAX = 20000;
 
-// Trae la base completa de contactos paginando hasta el final.
-// Se usa en la vista de leads (filtro por proyecto, resuelto en cliente) y
-// en los exports. rango de fechas (creado_en) y búsqueda (?q=) se filtran
-// en el servidor para no traer más de lo necesario.
-async function fetchTodos(rango?: RangoFechas, q?: string): Promise<Contacto[]> {
+const csv = (arr?: string[]) => (arr && arr.length > 0 ? arr.join(",") : undefined);
+
+// Trae TODOS los contactos que coinciden con los filtros, paginando hasta
+// el final. Se usa solo en el export (al hacer clic en "Descargar"), no en
+// la vista de tabla —esa pagina en el servidor de 50 en 50—. Los mismos
+// filtros que la tabla van al backend, así el CSV baja exactamente lo que
+// el usuario está viendo filtrado, pero completo (todas las páginas).
+async function fetchTodos(filtros: FiltrosLeads): Promise<Contacto[]> {
+  const { estados, proyectos, origenes, q, rango } = filtros;
   const todos: Contacto[] = [];
   for (let offset = 0; offset < MAX; offset += LOTE) {
     const r = await api.get("/api/crm/contactos", {
       params: {
         limit: LOTE,
         offset,
+        ...(csv(estados) && { estado: csv(estados) }),
+        ...(csv(proyectos) && { proyecto: csv(proyectos) }),
+        ...(csv(origenes) && { origen: csv(origenes) }),
         ...(rango?.desde && { desde: rango.desde }),
         ...(rango?.hasta && { hasta: rango.hasta }),
         ...(q && { q }),
@@ -31,12 +39,27 @@ async function fetchTodos(rango?: RangoFechas, q?: string): Promise<Contacto[]> 
   return todos;
 }
 
-export function useTodosContactos(enabled = true, rango?: RangoFechas, q?: string) {
+const VACIO: FiltrosLeads = { estados: [], proyectos: [], origenes: [] };
+
+export function useTodosContactos(filtros: FiltrosLeads = VACIO, enabled = false) {
+  const { estados, proyectos, origenes, q, rango } = filtros;
   return useQuery<Contacto[]>({
-    queryKey: ["contactos-todos", rango?.desde ?? "", rango?.hasta ?? "", q ?? ""],
-    queryFn: () => fetchTodos(rango, q),
+    queryKey: [
+      "contactos-todos",
+      estados.join(","),
+      proyectos.join(","),
+      origenes.join(","),
+      q ?? "",
+      rango?.desde ?? "",
+      rango?.hasta ?? "",
+    ],
+    queryFn: () => fetchTodos(filtros),
     staleTime: 55_000,
-    refetchInterval: 60_000, // el dashboard no necesita polling de 5s
     enabled,
   });
+}
+
+// Compat: firma vieja (rango suelto) para llamadas que aún no migran
+export function useTodosContactosPorRango(enabled = true, rango?: RangoFechas) {
+  return useTodosContactos({ estados: [], proyectos: [], origenes: [], rango }, enabled);
 }

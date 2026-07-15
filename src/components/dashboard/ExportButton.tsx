@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTodosContactos } from "@/hooks/useTodosContactos";
+import { useTodosContactosPorRango } from "@/hooks/useTodosContactos";
 import { descargarCSV } from "@/lib/csv";
 import { COLUMNAS_CSV, filasCSV } from "@/lib/leads";
 import { perteneceAProyecto } from "@/lib/proyectos";
@@ -11,13 +11,13 @@ import type { RangoFechas } from "@/types";
 // necesita para las gráficas: usa los endpoints agregados). El rango de
 // fechas se filtra en el servidor, igual que en las gráficas.
 export default function ExportButton({
-  plaza,
+  plazas,
   rango,
 }: {
-  plaza: string;
+  plazas: string[];
   rango?: RangoFechas;
 }) {
-  const { refetch } = useTodosContactos(false, rango);
+  const { refetch } = useTodosContactosPorRango(false, rango);
   const [descargando, setDescargando] = useState(false);
 
   const exportar = async () => {
@@ -26,10 +26,12 @@ export default function ExportButton({
       const { data } = await refetch();
       const base = data ?? [];
       const contactos =
-        plaza === "todas" ? base : base.filter((c) => perteneceAProyecto(c, plaza));
+        plazas.length === 0
+          ? base
+          : base.filter((c) => plazas.some((p) => perteneceAProyecto(c, p)));
       const fecha = new Date().toISOString().slice(0, 10);
       let sufijo =
-        plaza === "todas" ? "" : `_${plaza.replace(/[^\w-]+/g, "-").toLowerCase()}`;
+        plazas.length === 0 ? "" : `_${plazas.map((p) => p.replace(/[^\w-]+/g, "-").toLowerCase()).join("-")}`;
       if (rango?.desde || rango?.hasta)
         sufijo += `_${rango.desde || "inicio"}_a_${rango.hasta || "hoy"}`;
       descargarCSV(`leads_menorca${sufijo}_${fecha}.csv`, COLUMNAS_CSV, filasCSV(contactos));

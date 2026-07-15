@@ -37,42 +37,51 @@ export function useContactos(estado?: EstadoLead, q?: string) {
 
 export const PAGINA = 50;
 
-// Página fija de 50 para la tabla de leads. Pide 51 filas: si llegan más
-// de 50 hay página siguiente (la API no devuelve el total).
-// estado, búsqueda (?q=) y rango de fechas (creado_en) se filtran en el servidor.
-export function useContactosPagina(
-  pagina: number,
-  estado?: EstadoLead,
-  enabled = true,
-  rango?: RangoFechas,
-  q?: string
-) {
+// Filtros de la tabla de leads. Los tres multi-select llegan como arrays
+// (vacío = "todos"); se envían al backend como CSV (?estado=a,b). El
+// backend pagina y filtra todo (incluido proyecto, por LIKE) y devuelve el
+// total real para "1–50 de N".
+export interface FiltrosLeads {
+  estados: string[];
+  proyectos: string[];
+  origenes: string[];
+  q?: string;
+  rango?: RangoFechas;
+}
+
+const csv = (arr: string[]) => (arr.length > 0 ? arr.join(",") : undefined);
+
+export function useContactosPagina(pagina: number, filtros: FiltrosLeads) {
+  const { estados, proyectos, origenes, q, rango } = filtros;
   return useQuery({
-    enabled,
     queryKey: [
       "contactos-pagina",
-      estado ?? "todos",
+      estados.join(","),
+      proyectos.join(","),
+      origenes.join(","),
+      q ?? "",
       rango?.desde ?? "",
       rango?.hasta ?? "",
-      q ?? "",
       pagina,
     ],
     queryFn: () =>
       api
         .get("/api/crm/contactos", {
           params: {
-            limit: PAGINA + 1,
+            limit: PAGINA,
             offset: (pagina - 1) * PAGINA,
-            ...(estado && { estado }),
+            ...(csv(estados) && { estado: csv(estados) }),
+            ...(csv(proyectos) && { proyecto: csv(proyectos) }),
+            ...(csv(origenes) && { origen: csv(origenes) }),
             ...(rango?.desde && { desde: rango.desde }),
             ...(rango?.hasta && { hasta: rango.hasta }),
             ...(q && { q }),
           },
         })
-        .then((r) => {
-          const filas = extraerFilas(r.data);
-          return { leads: filas.slice(0, PAGINA), hayMas: filas.length > PAGINA };
-        }),
+        .then((r) => ({
+          leads: extraerFilas(r.data),
+          total: (r.data?.total as number) ?? 0,
+        })),
     placeholderData: keepPreviousData, // muestra la página anterior mientras carga
     refetchInterval: 30_000,
   });
