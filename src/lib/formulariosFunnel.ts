@@ -93,15 +93,17 @@ export function creativosDeFilas(filas: FilaFunnel[]): Creativo[] {
   }
   return [...grupos.entries()]
     .map(([anuncio, lista]) => {
-      // Mejor variante para mostrar: la primera fila con thumbnail
+      // Cada dato se toma de la primera fila del grupo que lo tenga: el
+      // thumbnail puede venir en una fila y el video_id en otra
       const conThumbnail = lista.find((f) => f.thumbnailUrl) ?? lista[0];
+      const videoId = lista.find((f) => f.videoId)?.videoId ?? "";
       return {
         anuncio,
         campana: conThumbnail.campana,
-        adId: conThumbnail.adId,
+        adId: (lista.find((f) => f.adId) ?? lista[0]).adId,
         thumbnailUrl: conThumbnail.thumbnailUrl,
-        videoId: conThumbnail.videoId,
-        videoUrl: urlVideo(conThumbnail.videoId),
+        videoId,
+        videoUrl: urlVideo(videoId),
         funnel: sumarFunnels(lista.map((f) => f.funnel)),
       };
     })
