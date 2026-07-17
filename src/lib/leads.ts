@@ -31,8 +31,22 @@ export const COLUMNAS_CSV = [
   { key: "numero", label: "Celular" },
   { key: "proyecto", label: "Proyecto" },
   { key: "estado", label: "Estado" },
+  { key: "creado_en", label: "Creado" },
   { key: "ultima_actividad", label: "Última actividad" },
 ];
+
+const fechaCSV = (iso: string | null | undefined) =>
+  iso
+    ? new Date(iso).toLocaleString("es-PE", {
+        timeZone: TZ,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : "";
 
 export function filasCSV(contactos: Contacto[]) {
   return contactos.map((c) => ({
@@ -41,16 +55,7 @@ export function filasCSV(contactos: Contacto[]) {
     // Nombres oficiales normalizados, no el texto libre de la BD
     proyecto: proyectosDe(c).join(", "),
     estado: BADGE_CONFIG[c.estado]?.label || c.estado,
-    ultima_actividad: c.ultima_actividad
-      ? new Date(c.ultima_actividad).toLocaleString("es-PE", {
-          timeZone: TZ,
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        })
-      : "",
+    creado_en: fechaCSV(c.creado_en),
+    ultima_actividad: fechaCSV(c.ultima_actividad),
   }));
 }

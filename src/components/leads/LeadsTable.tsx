@@ -47,6 +47,9 @@ function SkeletonRows({ filas = 8 }: { filas?: number }) {
           <td className="hidden px-4 py-3 lg:table-cell">
             <div className={`${SKELETON} h-3 w-28`} />
           </td>
+          <td className="hidden px-4 py-3 lg:table-cell">
+            <div className={`${SKELETON} h-3 w-28`} />
+          </td>
           <td className="hidden px-4 py-3 sm:table-cell">
             <div className={`${SKELETON} ml-auto h-3 w-8`} />
           </td>
@@ -82,6 +85,7 @@ export default function LeadsTable({
           <th className={TH}>Estado</th>
           <th className={`${TH} hidden lg:table-cell`}>Proyecto</th>
           <th className={`${TH} hidden lg:table-cell`}>Origen</th>
+          <th className={`${TH} hidden lg:table-cell`}>Creado</th>
           <th className={`${TH} hidden lg:table-cell`}>Última actividad</th>
           <th className={`${TH} hidden text-right sm:table-cell`}>Msjs</th>
         </tr>
@@ -90,7 +94,7 @@ export default function LeadsTable({
         {cargando && <SkeletonRows />}
         {!cargando && leads.length === 0 && (
           <tr>
-            <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
+            <td colSpan={8} className="px-4 py-12 text-center text-gray-400">
               No hay leads con este filtro
             </td>
           </tr>
@@ -127,6 +131,10 @@ export default function LeadsTable({
               </td>
               <td className="hidden px-4 py-2.5 text-gray-500 lg:table-cell">
                 {origenDe(c)}
+              </td>
+              {/* El filtro de fechas del panel filtra por esta columna */}
+              <td className="hidden px-4 py-2.5 whitespace-nowrap text-gray-500 lg:table-cell">
+                {formatFechaHora(c.creado_en)}
               </td>
               <td className="hidden px-4 py-2.5 whitespace-nowrap text-gray-500 lg:table-cell">
                 {formatFechaHora(c.ultima_actividad)}

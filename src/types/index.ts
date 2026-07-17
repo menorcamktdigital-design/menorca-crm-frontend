@@ -108,6 +108,33 @@ export interface Visita {
   fecha_visita: string | null;
 }
 
+// GET /api/crm/formularios — leads capturados por formularios de Meta
+// (Instant Forms), separados de la conversación de WhatsApp
+export interface LeadFormulario {
+  id: number
+  ad_id: string,
+  creado_en: string
+  derivado: boolean
+  documento: string
+  email: string
+  id_sperant: number
+  leadgen_id: string
+  nombre: string
+  numero: string
+  proyecto_nombre:string | null
+  utm_campaign: string | null
+  utm_content: string
+  utm_term: string
+}
+
+// GET /api/crm/formularios/stats
+export interface FormulariosStats {
+  total: number;
+  derivados: number;
+  ratioDerivacion: number | null;
+  campanas: number;
+}
+
 // Configuración de badge por estado
 export const BADGE_CONFIG: Record<string, { label: string; className: string }> = {
   en_conversacion: { label: "Conversando", className: "bg-amber-100 text-amber-800" },
