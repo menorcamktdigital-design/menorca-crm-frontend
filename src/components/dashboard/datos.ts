@@ -9,10 +9,17 @@ import { ESTADO_CHART, MUTED } from "./chartTheme";
 
 export interface ValoresTiles {
   leads: number;
+  meta_ads: number;
+  directo: number;
+  sin_atribuir: number;
+  acelerador: number;
+  referido: number;
   conversando: number;
   derivados: number;
   visitas: number;
   recontactos: number;
+  no_contesta: number;
+  no_interesado: number;
 }
 
 export interface DatoDonut {
@@ -34,11 +41,18 @@ export const DIAS_ACTIVIDAD = 14;
 
 export function tilesDesdeStats(s: Stats): ValoresTiles {
   return {
-    leads: s.total,
-    conversando: s.conversando,
-    derivados: s.derivados,
-    visitas: s.visitas ?? 0,
-    recontactos: s.recontactos ?? 0,
+    leads: Number(s.total) || 0,
+    meta_ads: Number(s.meta_ads) || 0,
+    directo: Number(s.directo) || 0,
+    sin_atribuir: Number(s.sin_atribuir) || 0,
+    acelerador: Number(s.acelerador) || 0,
+    referido: Number(s.referido) || 0,
+    conversando: Number(s.conversando) || 0,
+    derivados: Number(s.derivados) || 0,
+    visitas: Number(s.visitas) || 0,
+    recontactos: Number(s.recontactos) || 0,
+    no_contesta: Number(s.no_contesta) || 0,
+    no_interesado: Number(s.no_interesado) || 0,
   };
 }
 
@@ -51,6 +65,8 @@ export function donutDesdeStats(s: Stats): DatoDonut[] {
     visita_agendada: s.visitas ?? 0,
   };
   if (s.recontactos !== undefined) por.recontacto = s.recontactos;
+  if (s.no_contesta !== undefined) por.no_contesta = Number(s.no_contesta) || 0;
+  if (s.no_interesado !== undefined) por.no_interesado = Number(s.no_interesado) || 0;
   const datos = ESTADO_CHART.filter((e) => e.key in por).map((e) => ({
     ...e,
     valor: por[e.key],

@@ -96,11 +96,12 @@ export function useStatsMultitouch(proyecto?: string, rango?: RangoFechas) {
 // distintas si no se alinean los filtros).
 // Filtra por ad_id (identificador único real de Meta), no por el nombre
 // de texto del anuncio, que puede repetirse entre dos anuncios distintos.
-export function useProyectosDeAnuncio(adId: string, proyecto?: string, rango?: RangoFechas) {
+export function useProyectosDeAnuncio(adId: string, campaignId?: string, proyecto?: string, rango?: RangoFechas) {
   return useQuery<ProyectoDeAnuncio[]>({
     queryKey: [
       "stats-anuncio-proyectos",
       adId,
+      campaignId ?? "",
       proyecto ?? "todas",
       rango?.desde ?? "",
       rango?.hasta ?? "",
@@ -108,7 +109,7 @@ export function useProyectosDeAnuncio(adId: string, proyecto?: string, rango?: R
     queryFn: () =>
       api
         .get("/api/crm/stats/anuncios/proyectos", {
-          params: { ad_id: adId, ...paramsFiltro(proyecto, rango) },
+          params: { ad_id: adId, campaign_id: campaignId, ...paramsFiltro(proyecto, rango) },
         })
         .then((r) => proyectosDeAnuncioDeApi(filas(r.data))),
     enabled: adId.length > 0,

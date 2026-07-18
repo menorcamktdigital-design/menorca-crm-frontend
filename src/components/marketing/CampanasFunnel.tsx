@@ -153,10 +153,14 @@ export default function CampanasFunnel({
                         </button>
 
                         {abiertos.has(kAdset) &&
-                          a.anuncios.map((an) => {
-                            const kAnuncio = `n:${an.adId || `${claveCampana}|${a.adset}|${an.anuncio}`}`;
+                          a.anuncios.map((an, iAn) => {
+                            // El índice hace la clave única aunque el backend
+                            // devuelva el mismo ad_id en dos filas (nombre de
+                            // texto distinto por COALESCE la.ad_name/first_ad_name):
+                            // sin él, ambos nodos comparten toggle y se abren juntos.
+                            const kAnuncio = `n:${claveCampana}|${a.adset}|${an.adId || an.anuncio}|${iAn}`;
                             return (
-                              <div key={an.adId || kAnuncio}>
+                              <div key={kAnuncio}>
                                 <button
                                   onClick={() => toggle(kAnuncio)}
                                   className="flex w-full items-center gap-2 py-2 pl-5 text-left text-sm hover:bg-gray-50"
@@ -176,7 +180,7 @@ export default function CampanasFunnel({
                                 </button>
                                 {abiertos.has(kAnuncio) && (
                                   <div className="border-l-2 border-gray-100 pb-2 pl-10">
-                                    <AnuncioProyectos adId={an.adId} rango={rango} totalLeads={an.leads} proyecto={proyecto} />
+                                    <AnuncioProyectos adId={an.adId} campaignId={c.campaignId} rango={rango} totalLeads={an.leads} proyecto={proyecto} />
                                   </div>
                                 )}
                               </div>

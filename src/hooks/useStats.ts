@@ -27,6 +27,13 @@ export function useStats(proyecto?: string, rango?: RangoFechas) {
           derivados: Number(r.data.derivados) || 0,
           visitas: Number(r.data.visitas) || 0,
           recontactos: Number(r.data.recontactos) || 0,
+          no_contesta: Number(r.data.no_contesta) || 0,
+          no_interesado: Number(r.data.no_interesado) || 0,
+          meta_ads: Number(r.data.meta_ads) || 0,
+          sin_atribuir: Number(r.data.sin_atribuir) || 0,
+          acelerador: Number(r.data.acelerador) || 0,
+          referido: Number(r.data.referido) || 0,
+          directo: Number(r.data.directo) || 0,
         })),
     refetchInterval: 30_000,
   });

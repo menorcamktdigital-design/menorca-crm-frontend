@@ -6,6 +6,8 @@ export const ESTADO_CHART: { key: string; label: string; color: string }[] = [
   { key: "recontacto", label: "Recontacto", color: "#c2680a" },
   { key: "derivado", label: "Derivado", color: "#00a884" },
   { key: "visita_agendada", label: "Visita", color: "#2a78d6" },
+  { key: "no_contesta", label: "No contesta", color: "#94a3b8" },
+  { key: "no_interesado", label: "No interesado", color: "#ef4444" },
   { key: "nuevo", label: "Nuevo", color: "#4a3aa7" },
   { key: "frio", label: "Frío", color: "#e87ba4" },
 ];

@@ -16,16 +16,18 @@ import type { RangoFechas } from "@/types";
 // que ya viene filtrado por ese mismo proyecto.
 export default function AnuncioProyectos({
   adId,
+  campaignId,
   rango,
   totalLeads,
   proyecto,
 }: {
   adId: string;
+  campaignId?: string;
   rango?: RangoFechas;
   totalLeads: number;
   proyecto?: string;
 }) {
-  const q = useProyectosDeAnuncio(adId, proyecto, rango);
+  const q = useProyectosDeAnuncio(adId, campaignId, proyecto, rango);
 
   // Sin ad_id no hay forma de pedir el desglose (el endpoint filtra por
   // ese identificador): pasa con leads de atribución incompleta, no es
@@ -60,15 +62,12 @@ export default function AnuncioProyectos({
   const soloProyectosReales = proyectos
     .filter((p) => p.proyecto !== "Sin proyecto")
     .reduce((acc, p) => acc + p.total, 0);
-  // La suma puede superar el total por dos motivos distintos: un lead que
-  // mencionó 2+ proyectos reales (normal, mismo criterio que "Leads por
-  // plaza" en el dashboard), o un mismo contacto con dos filas en la BD
-  // (una con proyecto_interes seteado y otra vacía). Como `proyecto` ya se
-  // propaga al desglose, esto solo puede saltar por datos duplicados
-  // reales, no por comparar un total filtrado contra una suma sin filtrar.
-  // Se muestran por separado porque una es esperable y la otra no.
-  const excesoPorMultiproyecto = Math.max(0, soloProyectosReales - totalLeads);
-  const excesoPorDuplicado = sumaProyectos - totalLeads - excesoPorMultiproyecto;
+  // base = el total real de esta consulta (filtrada por campaña si aplica).
+  // Usar sumaProyectos cuando supera a totalLeads evita falsos warnings
+  // cuando el filtro de campaña reduce la población respecto al anuncio padre.
+  const base = Math.max(totalLeads, sumaProyectos);
+  const excesoPorMultiproyecto = Math.max(0, soloProyectosReales - base);
+  const excesoPorDuplicado = sumaProyectos - base - excesoPorMultiproyecto;
 
   return (
     <>

@@ -18,6 +18,9 @@ const OPCIONES_ESTADO = [
   { value: "en_conversacion", label: "Conversando" },
   { value: "recontacto", label: "Recontactos" },
   { value: "derivado", label: "Derivados" },
+  { value: "no_contesta", label: "No contesta" },
+  { value: "no_interesado", label: "No interesado" },
+  { value: "visita_agendada", label: "Visita agendada" },
 ];
 
 const OPCIONES_PROYECTO = [

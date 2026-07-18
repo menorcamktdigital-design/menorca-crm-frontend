@@ -2,7 +2,8 @@ export type EstadoLead =
   | "nuevo"
   | "en_conversacion"
   | "derivado"
-  | "frio"
+  | "no_contesta"
+  | "no_interesado"
   | "visita_agendada"
   | "recontacto";
 
@@ -80,10 +81,17 @@ export interface RangoFechas {
 
 export interface Stats {
   total: number;
+  meta_ads?: number;
+  directo?: number;
+  sin_atribuir?: number;
+  acelerador?: number;
+  referido?: number;
   conversando: number;
   derivados: number;
   visitas: number;
   recontactos?: number;
+  no_contesta?: number;
+  no_interesado?: number;
 }
 
 // GET /api/crm/stats/proyectos — conteo por proyecto agrupado en el backend
@@ -139,7 +147,8 @@ export interface FormulariosStats {
 export const BADGE_CONFIG: Record<string, { label: string; className: string }> = {
   en_conversacion: { label: "Conversando", className: "bg-amber-100 text-amber-800" },
   derivado: { label: "Derivado", className: "bg-green-100 text-green-800" },
-  frio: { label: "Frío", className: "bg-slate-100 text-slate-600" },
+  no_contesta: { label: "No contesta", className: "bg-gray-100 text-gray-800" },
+  no_interesado: { label: "No interesado", className: "bg-red-100 text-red-800" },
   visita_agendada: { label: "Visita", className: "bg-blue-100 text-blue-800" },
   nuevo: { label: "Nuevo", className: "bg-slate-100 text-slate-600" },
   recontacto: { label: "Recontacto", className: "bg-orange-100 text-orange-800" },
