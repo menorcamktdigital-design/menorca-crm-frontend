@@ -68,6 +68,7 @@ export interface Mensaje {
   id?: number;
   rol: "user" | "assistant";
   mensaje: string;
+  media_url?: string | null;
   fecha: string; // ISO date
 }
 
@@ -109,11 +110,10 @@ export interface StatsActividad {
   derivados: string;
 }
 
-export interface Visita {
-  numero: string;
-  nombre: string | null;
-  proyecto: string | null;
-  fecha_visita: string | null;
+// GET /api/crm/visitas — contactos con estado visita_agendada (fila
+// completa de contactos; fecha_visita solo si la columna existe en la BD)
+export interface Visita extends Contacto {
+  fecha_visita?: string | null;
 }
 
 // GET /api/crm/formularios — leads capturados por formularios de Meta

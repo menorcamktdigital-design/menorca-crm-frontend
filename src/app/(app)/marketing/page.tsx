@@ -10,6 +10,7 @@ import {
 } from "@/hooks/useStatsMarketing";
 import { PROYECTOS, SIN_PROYECTO } from "@/lib/proyectos";
 import PlazaFilter from "@/components/dashboard/PlazaFilter";
+import CanalTabs from "@/components/marketing/CanalTabs";
 import DateRangeFilter from "@/components/ui/DateRangeFilter";
 import KpisMarketing from "@/components/marketing/KpisMarketing";
 import FuentesCard from "@/components/marketing/FuentesCard";
@@ -40,12 +41,14 @@ export default function MarketingPage() {
   return (
     <main className="h-full overflow-y-auto p-4 md:p-6">
       <div className="mx-auto max-w-6xl">
+        <CanalTabs />
+
         {/* Header */}
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Marketing</h1>
             <p className="text-sm text-gray-500">
-              Atribución de leads: fuentes, campañas y creativos de Meta Ads
+              Leads que escriben por WhatsApp desde anuncios de Meta Ads
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

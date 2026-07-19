@@ -1,11 +1,13 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
 import { useFichaContacto } from "@/hooks/useFichaContacto";
 import { useModalStore } from "@/store/modalStore";
 import { useUIStore } from "@/store/uiStore";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
 import { formatFechaHoraLarga as formatFecha } from "@/lib/fecha";
+import { slugDeNumero } from "@/lib/slug";
 import type { Touch } from "@/types";
 
 const FUENTE_LABEL: Record<string, string> = {
@@ -105,11 +107,18 @@ export default function FichaContacto({ numero }: { numero: string }) {
   const closeModal = useModalStore((s) => s.closeModal);
   const setNumeroActivo = useUIStore((s) => s.setNumeroActivo);
   const setTab = useUIStore((s) => s.setTab);
+  const pathname = usePathname();
+  const router = useRouter();
 
   const verConversacion = () => {
     setNumeroActivo(numero);
     setTab("chats");
     closeModal();
+    // Desde otras vistas (Visitas, etc.) hay que navegar a /conversaciones;
+    // dentro de /conversaciones basta el cambio de estado.
+    if (pathname !== "/conversaciones") {
+      router.push(`/conversaciones?c=${slugDeNumero(numero)}`);
+    }
   };
 
   if (isLoading) {
@@ -136,8 +145,9 @@ export default function FichaContacto({ numero }: { numero: string }) {
       </div>
 
       <div className="px-5 pt-3">
-        <button
-          onClick={verConversacion}
+        <a
+          href={`/conversaciones?c=${slugDeNumero(numero)}`}
+          onClick={(e) => { e.preventDefault(); verConversacion(); }}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00a884] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#009073]"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -148,7 +158,7 @@ export default function FichaContacto({ numero }: { numero: string }) {
             />
           </svg>
           Ver conversación
-        </button>
+        </a>
       </div>
 
       <Seccion titulo="Datos del lead">

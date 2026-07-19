@@ -14,9 +14,19 @@ const n = (v: number) => v.toLocaleString("es-PE");
 // Imagen del anuncio o thumbnail del video; los videos llevan overlay ▶ y
 // clic abre el video en Facebook
 function Media({ creativo }: { creativo: Creativo }) {
-  const [rota, setRota] = useState(false);
   const c = creativo;
-  const url = c.imagenUrl;
+  // Con ad_id se pide la imagen HD al backend (Graph API + caché, mismo
+  // patrón que FormulariosCreativos); si falla se cae a la URL guardada en
+  // la BD, y si también falla, al placeholder.
+  const [nivel, setNivel] = useState(0);
+  const fuentes = [
+    // ?v=2 invalida las copias viejas (90px) que el navegador cacheó antes
+    // del arreglo de resolución del backend
+    ...(c.adId ? [`/api/crm/creativo/${c.adId}/imagen?v=2`] : []),
+    ...(c.imagenUrl ? [c.imagenUrl] : []),
+  ];
+  const url = fuentes[nivel];
+  const rota = nivel >= fuentes.length;
 
   if (!url || rota) {
     return (
@@ -38,7 +48,7 @@ function Media({ creativo }: { creativo: Creativo }) {
       alt={c.esCatalogoDinamico ? c.anuncio : c.campana || c.anuncio}
       loading="lazy"
       referrerPolicy="no-referrer"
-      onError={() => setRota(true)}
+      onError={() => setNivel((n) => n + 1)}
       className="h-36 w-full rounded-lg bg-gray-100 object-cover"
     />
   );
@@ -71,14 +81,20 @@ function TarjetaCreativo({
   rango,
   proyecto,
   nombreRepetido,
+  totalDerivados,
 }: {
   creativo: Creativo;
   rango?: RangoFechas;
   proyecto?: string;
   nombreRepetido: boolean;
+  totalDerivados: number;
 }) {
   const [verProyectos, setVerProyectos] = useState(false);
   const c = creativo;
+  // Participación: qué % de TODOS los derivados (del filtro actual) aportó
+  // este anuncio. Distinto del ratio, que es la conversión interna del ad.
+  const participacion =
+    totalDerivados > 0 ? Math.round((c.derivados / totalDerivados) * 1000) / 10 : null;
 
   return (
     <div className="flex flex-col rounded-xl border border-gray-100 p-3">
@@ -136,7 +152,7 @@ function TarjetaCreativo({
           <span className="font-semibold text-gray-900">{n(c.derivados)}</span>{" "}
           <span className="text-gray-500">deriv.</span>
         </span>
-        <span className="text-gray-500">
+        <span className="text-gray-500" title="Conversión del anuncio: derivados / leads del anuncio">
           {c.ratio !== null ? `${c.ratio}%` : "—"}
         </span>
         <button
@@ -146,6 +162,23 @@ function TarjetaCreativo({
           {verProyectos ? "Ocultar" : "Proyectos"}
         </button>
       </div>
+
+      {participacion !== null && c.derivados > 0 && (
+        <div
+          className="mt-1.5 flex items-center gap-2"
+          title={`De los ${n(totalDerivados)} derivados totales, ${n(c.derivados)} vinieron de este anuncio`}
+        >
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-[#00a884]"
+              style={{ width: `${Math.min(participacion, 100)}%` }}
+            />
+          </div>
+          <span className="shrink-0 text-[11px] font-medium text-gray-600">
+            {participacion}% del total de deriv.
+          </span>
+        </div>
+      )}
 
       {verProyectos && (
         <div className="mt-1 border-t border-gray-100 pt-1">
@@ -178,6 +211,9 @@ export default function CreativosGrid({
   const nombresRepetidos = new Set(
     visibles.map((c) => c.anuncio).filter((nombre, i, arr) => arr.indexOf(nombre) !== i)
   );
+  // Base de participación: TODOS los creativos del filtro actual, no solo
+  // los visibles — así el % no cambia al expandir "Mostrar todos"
+  const totalDerivados = creativos.reduce((acc, c) => acc + c.derivados, 0);
 
   return (
     <ChartCard
@@ -193,6 +229,7 @@ export default function CreativosGrid({
               rango={rango}
               proyecto={proyecto}
               nombreRepetido={nombresRepetidos.has(c.anuncio)}
+              totalDerivados={totalDerivados}
             />
           ))}
         </div>

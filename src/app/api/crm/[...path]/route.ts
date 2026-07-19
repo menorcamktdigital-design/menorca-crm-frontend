@@ -22,11 +22,21 @@ export async function GET(
     cache: "no-store",
   });
 
+  const contentType = upstream.headers.get("content-type") ?? "application/json";
+  // Para imágenes pasamos el stream binario directamente
+  if (contentType.startsWith("image/")) {
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      headers: {
+        "content-type": contentType,
+        "cache-control": "public, max-age=3600",
+      },
+    });
+  }
+
   const body = await upstream.text();
   return new NextResponse(body, {
     status: upstream.status,
-    headers: {
-      "content-type": upstream.headers.get("content-type") ?? "application/json",
-    },
+    headers: { "content-type": contentType },
   });
 }

@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 // login se reemplaza `login()` por la llamada real y se guarda el token.
 export interface Usuario {
   nombre: string;
+  correo?: string;
 }
 
 // Cookie que lee src/proxy.ts para proteger rutas en el servidor.
@@ -24,6 +25,7 @@ interface AuthState {
   setHidratado: (v: boolean) => void;
   login: (nombre: string) => void;
   logout: () => void;
+  actualizarPerfil: (datos: Partial<Usuario>) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -40,6 +42,8 @@ export const useAuthStore = create<AuthState>()(
         setSessionCookie(false);
         set({ usuario: null });
       },
+      actualizarPerfil: (datos) =>
+        set((s) => (s.usuario ? { usuario: { ...s.usuario, ...datos } } : s)),
     }),
     {
       name: "menorca-auth",

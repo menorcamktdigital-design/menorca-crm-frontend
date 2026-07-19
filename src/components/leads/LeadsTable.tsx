@@ -5,6 +5,7 @@ import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
 import { proyectosDe } from "@/lib/proyectos";
 import { formatFechaHora } from "@/lib/fecha";
+import { slugDeNumero } from "@/lib/slug";
 import FichaContacto from "./FichaContacto";
 import type { Contacto } from "@/types";
 
@@ -108,8 +109,9 @@ export default function LeadsTable({
               {/* Solo el nombre abre la ficha: así el resto de la fila
                   (número, proyecto...) se puede seleccionar y copiar. */}
               <td className="px-4 py-2.5">
-                <button
-                  onClick={() => abrirFicha(c)}
+                <a
+                  href={`/conversaciones?c=${slugDeNumero(c.numero)}`}
+                  onClick={(e) => { e.preventDefault(); abrirFicha(c); }}
                   title="Ver ficha del lead"
                   className="group flex cursor-pointer items-center gap-3 text-left"
                 >
@@ -117,7 +119,7 @@ export default function LeadsTable({
                   <span className="font-medium text-gray-900 group-hover:text-[#00a884] group-hover:underline">
                     {c.nombre || "Sin nombre"}
                   </span>
-                </button>
+                </a>
               </td>
               {/* select-all: un clic selecciona el número completo para copiar */}
               <td className="px-4 py-2.5 text-gray-500 tabular-nums select-all">

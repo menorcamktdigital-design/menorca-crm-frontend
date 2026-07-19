@@ -15,8 +15,15 @@ const n = (v: number) => v.toLocaleString("es-PE");
 // link se arma con el ID (facebook.com/video.php?v=), sin garantía de que
 // cargue si el video es privado.
 function Media({ creativo }: { creativo: Creativo }) {
-  const [rota, setRota] = useState(false);
-  const url = creativo.thumbnailUrl;
+  // Con ad_id se pide la imagen HD al backend (Graph API + caché); si esa
+  // falla se cae a la miniatura 64px de la BD, y si también falla, al vacío.
+  const [nivel, setNivel] = useState(0);
+  const fuentes = [
+    ...(creativo.adId ? [`/api/crm/creativo/${creativo.adId}/imagen?v=2`] : []),
+    ...(creativo.thumbnailUrl ? [creativo.thumbnailUrl] : []),
+  ];
+  const url = fuentes[nivel];
+  const rota = nivel >= fuentes.length;
 
   if (!url || rota) {
     return (
@@ -38,7 +45,7 @@ function Media({ creativo }: { creativo: Creativo }) {
       alt={creativo.anuncio}
       loading="lazy"
       referrerPolicy="no-referrer"
-      onError={() => setRota(true)}
+      onError={() => setNivel((n) => n + 1)}
       className="h-36 w-full rounded-lg bg-gray-100 object-cover"
     />
   );
@@ -115,7 +122,6 @@ export default function FormulariosCreativos({
 }) {
   const [todos, setTodos] = useState(false);
   const visibles = todos ? creativos : creativos.slice(0, TOP);
-
   return (
     <ChartCard
       titulo="Creativos"

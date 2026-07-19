@@ -5,29 +5,24 @@ import {
   useFormulariosFunnel,
   useFormulariosPagina,
   useFormulariosStats,
-  PAGINA,
   type FiltrosFormularios,
 } from "@/hooks/useFormularios";
 import { useDebounce } from "@/hooks/useDebounce";
 import { creativosDeFilas } from "@/lib/formulariosFunnel";
 import { PROYECTOS } from "@/lib/proyectos";
 import PlazaFilter from "@/components/dashboard/PlazaFilter";
+import CanalTabs from "@/components/marketing/CanalTabs";
 import DateRangeFilter from "@/components/ui/DateRangeFilter";
 import FormulariosStatsTiles from "@/components/formularios/FormulariosStatsTiles";
-import FormulariosTable from "@/components/formularios/FormulariosTable";
 import FormulariosExport from "@/components/formularios/FormulariosExport";
 import FormulariosFunnel from "@/components/formularios/FormulariosFunnel";
 import FormulariosCreativos from "@/components/formularios/FormulariosCreativos";
 import type { RangoFechas } from "@/types";
 
-const BTN_PAGINA =
-  "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40";
-
 // Vista de leads capturados por formularios de Meta (Instant Forms),
 // separados de la conversación de WhatsApp. Los filtros van al backend
 // (?proyecto=&utm_campaign=&desde=&hasta=), igual que en /marketing y Leads.
 export default function FormulariosPage() {
-  const [pagina, setPagina] = useState(1);
   const [plazas, setPlazas] = useState<string[]>([]);
   const [campana, setCampana] = useState("");
   const [rango, setRango] = useState<RangoFechas>({});
@@ -40,32 +35,23 @@ export default function FormulariosPage() {
     [proyecto, campanaDebounced, rango]
   );
 
-  const claveFiltros = `${proyecto ?? ""}|${filtros.utmCampaign ?? ""}|${rango.desde ?? ""}|${rango.hasta ?? ""}`;
-  const [prevFiltros, setPrevFiltros] = useState(claveFiltros);
-  if (prevFiltros !== claveFiltros) {
-    setPrevFiltros(claveFiltros);
-    setPagina(1);
-  }
-
   const stats = useFormulariosStats(filtros);
   const funnel = useFormulariosFunnel(filtros);
   const creativos = useMemo(() => creativosDeFilas(funnel.data ?? []), [funnel.data]);
-  const { data, isLoading: cargando, isPlaceholderData } = useFormulariosPagina(pagina, filtros);
-  const formularios = data?.formularios ?? [];
+  // Solo se usa el total para el export; la tabla paginada ya no se muestra
+  const { data } = useFormulariosPagina(1, filtros);
   const total = data?.total ?? 0;
-  const hayMas = pagina * PAGINA < total;
-
-  const desde = total === 0 ? 0 : (pagina - 1) * PAGINA + 1;
-  const hasta = (pagina - 1) * PAGINA + formularios.length;
 
   return (
     <main className="h-full overflow-y-auto p-4 md:p-6">
       <div className="mx-auto max-w-6xl">
+        <CanalTabs />
+
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Formularios</h1>
             <p className="text-sm text-gray-500">
-              Leads capturados por formularios de Meta (Instant Forms)
+              Leads capturados por formularios instantáneos de Meta
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -92,33 +78,6 @@ export default function FormulariosPage() {
           <FormulariosCreativos creativos={creativos} cargando={funnel.isLoading} error={funnel.isError} />
         </div>
 
-        <div className="mt-4 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className={`overflow-auto transition-opacity ${isPlaceholderData ? "opacity-50" : ""}`}>
-            <FormulariosTable formularios={formularios} cargando={cargando} />
-          </div>
-
-          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-2.5">
-            <span className="text-sm text-gray-500">
-              {total > 0 ? `${desde}–${hasta} de ${total.toLocaleString("es-PE")}` : "0"} · Página {pagina}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPagina((p) => p - 1)}
-                disabled={pagina === 1 || isPlaceholderData}
-                className={BTN_PAGINA}
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setPagina((p) => p + 1)}
-                disabled={!hayMas || isPlaceholderData}
-                className={BTN_PAGINA}
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </main>
   );
