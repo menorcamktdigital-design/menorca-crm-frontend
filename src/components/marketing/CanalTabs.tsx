@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 // Pestañas de canal compartidas entre las vistas de marketing: cada canal
-// de captación es una página propia. TikTok se habilita cuando n8n guarde
-// esos leads con su propio source_type.
+// de captación es una página propia.
 const CANALES = [
   { href: "/marketing", label: "WhatsApp · Meta" },
   { href: "/formularios", label: "Forms · Meta" },
+  { href: "/formularios-tiktok", label: "Forms · TikTok" },
+  { href: "/formularios-web", label: "Forms · Web" },
 ];
 
 export default function CanalTabs() {
@@ -29,12 +30,6 @@ export default function CanalTabs() {
           {c.label}
         </Link>
       ))}
-      <span
-        title="Disponible cuando se conecte TikTok Ads"
-        className="cursor-not-allowed rounded-lg px-3.5 py-1.5 text-sm font-medium text-gray-300"
-      >
-        Forms · TikTok
-      </span>
     </div>
   );
 }

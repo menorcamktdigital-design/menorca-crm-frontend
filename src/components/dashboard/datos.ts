@@ -33,6 +33,9 @@ export interface DiaActividad {
   label: string;
   leads: number;
   derivados: number;
+  // desglose de derivados por fuente del lead (Meta Ads vs directo)
+  derivadosMeta: number;
+  derivadosDirecto: number;
   // % derivados/conversaciones del día (null cuando no hubo actividad)
   ratio: number | null;
 }
@@ -113,9 +116,14 @@ export function plazasDesdeStats(rows: StatsProyecto[]): Map<string, ConteoPlaza
 // Con rango sigue desde/hasta (solo "desde" → hasta hoy; solo "hasta" →
 // 14 días hacia atrás). Tope de 366 puntos contados desde el final para
 // no degradar el render con rangos absurdos.
-function escalaDias(
-  rango?: RangoFechas
-): { key: string; label: string; leads: number; derivados: number }[] {
+function escalaDias(rango?: RangoFechas): {
+  key: string;
+  label: string;
+  leads: number;
+  derivados: number;
+  derivadosMeta: number;
+  derivadosDirecto: number;
+}[] {
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const parse = (s: string) => new Date(`${s}T00:00:00`);
@@ -136,6 +144,8 @@ function escalaDias(
       label: f.toLocaleDateString("es-PE", { day: "2-digit", month: "short" }),
       leads: 0,
       derivados: 0,
+      derivadosMeta: 0,
+      derivadosDirecto: 0,
     });
   }
   return dias;
@@ -151,6 +161,8 @@ export function actividadDesdeStats(
     if (!dia) continue;
     dia.leads = Number(r.total) || 0;
     dia.derivados = Number(r.derivados) || 0;
+    dia.derivadosMeta = Number(r.derivados_meta) || 0;
+    dia.derivadosDirecto = Number(r.derivados_directo) || 0;
   }
   return dias.map((d) => ({
     ...d,

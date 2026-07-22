@@ -103,11 +103,15 @@ export interface StatsProyecto {
   derivados: string;
 }
 
-// GET /api/crm/stats/actividad — últimos 14 días calculados en el backend
+// GET /api/crm/stats/actividad — últimos 14 días calculados en el backend.
+// derivados = derivados_meta + derivados_directo (el filtro base del
+// backend excluye leads sin first_source_type)
 export interface StatsActividad {
   fecha: string;
   total: string;
   derivados: string;
+  derivados_meta: string;
+  derivados_directo: string;
 }
 
 // GET /api/crm/visitas — contactos con estado visita_agendada (fila
@@ -141,6 +145,41 @@ export interface FormulariosStats {
   derivados: number;
   ratioDerivacion: number | null;
   campanas: number;
+}
+
+// GET /api/crm/formularios/tiktok — leads de formularios de TikTok Lead
+// Generation. TikTok no manda UTMs: el webhook guarda los nombres reales
+// de campaña/anuncio (campaign_name, ad_name) y el ad_id.
+export interface LeadFormularioTiktok {
+  id: number;
+  numero: string;
+  nombre: string;
+  email: string | null;
+  proyecto_nombre: string | null;
+  id_sperant: number | null;
+  campaign_name: string | null;
+  ad_name: string | null;
+  ad_id: string | null;
+  page_name: string | null;
+  derivado: boolean;
+  creado_en: string;
+}
+
+// GET /api/crm/formularios/web — leads del formulario de la web
+// (menorca.pe), atribuidos por UTMs (organic, Google Ads pmax/cpc, etc.)
+export interface LeadFormularioWeb {
+  id: number;
+  numero: string;
+  nombre: string;
+  proyecto_nombre: string | null;
+  id_sperant: number | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  derivado: boolean;
+  creado_en: string;
 }
 
 // Configuración de badge por estado

@@ -11,17 +11,21 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import { ACCENT, GRID, MUTED } from "./chartTheme";
+import { GRID, MUTED } from "./chartTheme";
 import { DIAS_ACTIVIDAD, type DiaActividad } from "./datos";
 import ChartCard from "./ChartCard";
 
 const COLOR_LEADS = "#667781"; // total del día (neutro)
-const COLOR_DERIV = ACCENT; // subconjunto derivado (verde marca)
+// Derivados desglosados por fuente del lead, con los mismos colores de
+// identidad que "Leads por fuente" (FuentesCard): Meta azul, directo morado
+const COLOR_DERIV_META = "#2a78d6";
+const COLOR_DERIV_DIRECTO = "#4a3aa7";
 const COLOR_RATIO = "#eda100"; // % derivación (eje derecho, ámbar de la marca)
 
 // Serie por día: conversaciones con actividad ese día, cuántas quedaron
-// derivadas y el ratio diario derivados/conversaciones. periodo describe
-// el rango mostrado (default: últimos 14 días).
+// derivadas (apiladas por fuente: Meta Ads vs directo) y el ratio diario
+// derivados/conversaciones. periodo describe el rango mostrado (default:
+// últimos 14 días).
 export default function ActividadChart({
   dias,
   periodo,
@@ -42,9 +46,13 @@ export default function ActividadChart({
                 <stop offset="0%" stopColor={COLOR_LEADS} stopOpacity={0.1} />
                 <stop offset="100%" stopColor={COLOR_LEADS} stopOpacity={0} />
               </linearGradient>
-              <linearGradient id="derivFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={COLOR_DERIV} stopOpacity={0.18} />
-                <stop offset="100%" stopColor={COLOR_DERIV} stopOpacity={0} />
+              <linearGradient id="derivMetaFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={COLOR_DERIV_META} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={COLOR_DERIV_META} stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="derivDirectoFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={COLOR_DERIV_DIRECTO} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={COLOR_DERIV_DIRECTO} stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke={GRID} />
@@ -98,14 +106,28 @@ export default function ActividadChart({
               fill="url(#leadsFill)"
               activeDot={{ r: 4 }}
             />
+            {/* Apiladas: la suma de las dos series es el total de derivados
+                del día (el backend excluye leads sin fuente atribuida) */}
             <Area
               yAxisId="cantidad"
               type="monotone"
-              name="Derivados"
-              dataKey="derivados"
-              stroke={COLOR_DERIV}
+              name="Deriv. Meta Ads"
+              dataKey="derivadosMeta"
+              stackId="derivados"
+              stroke={COLOR_DERIV_META}
               strokeWidth={2}
-              fill="url(#derivFill)"
+              fill="url(#derivMetaFill)"
+              activeDot={{ r: 4 }}
+            />
+            <Area
+              yAxisId="cantidad"
+              type="monotone"
+              name="Deriv. Directo"
+              dataKey="derivadosDirecto"
+              stackId="derivados"
+              stroke={COLOR_DERIV_DIRECTO}
+              strokeWidth={2}
+              fill="url(#derivDirectoFill)"
               activeDot={{ r: 4 }}
             />
             <Line

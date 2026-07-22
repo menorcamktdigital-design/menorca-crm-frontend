@@ -4,12 +4,16 @@ import type { FormulariosStats } from "@/types";
 
 const n = (v: number) => v.toLocaleString("es-PE");
 
+// etiquetaCuarto: el 4to tile cuenta campañas en Meta/TikTok y fuentes en
+// Web (el hook de web ya mapea su conteo al campo `campanas`)
 export default function FormulariosStatsTiles({
   stats,
   cargando,
+  etiquetaCuarto = "Campañas activas",
 }: {
   stats: FormulariosStats | undefined;
   cargando: boolean;
+  etiquetaCuarto?: string;
 }) {
   const tiles = [
     {
@@ -28,7 +32,7 @@ export default function FormulariosStatsTiles({
       color: "text-[#2a78d6]",
     },
     {
-      label: "Campañas activas",
+      label: etiquetaCuarto,
       texto: n(stats?.campanas ?? 0),
       color: "text-gray-900",
     },
