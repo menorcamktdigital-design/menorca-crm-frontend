@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import ChartCard from "@/components/dashboard/ChartCard";
+import { useModalStore } from "@/store/modalStore";
 import {
   arbolAnuncios,
   esPlaceholder,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/marketing";
 import type { RangoFechas } from "@/types";
 import AnuncioProyectos from "./AnuncioProyectos";
+import LeadsDeAnuncio from "./LeadsDeAnuncio";
 import EstadoDatos from "./EstadoDatos";
 
 const TOP = 10;
@@ -21,6 +23,9 @@ const n = (v: number) => v.toLocaleString("es-PE");
 // Ancho fijo por columna para que todos los niveles y el encabezado
 // queden alineados
 const COL = "w-10 text-right sm:w-14";
+// Columna de acción al final de cada fila (ícono "ver leads" en anuncios;
+// espaciador en los demás niveles para que las métricas queden alineadas)
+const ACT = "w-8 shrink-0";
 
 function Chevron({ abierto }: { abierto: boolean }) {
   return (
@@ -36,13 +41,24 @@ function Chevron({ abierto }: { abierto: boolean }) {
   );
 }
 
+function IconoLeads() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"
+      />
+    </svg>
+  );
+}
+
 function Metricas({ funnel, fuerte }: { funnel: Funnel; fuerte?: boolean }) {
   return (
     <div className="ml-auto flex shrink-0 text-xs">
       <span className={`${COL} ${fuerte ? "font-semibold text-gray-900" : "text-gray-700"}`}>
         {n(funnel.leads)}
       </span>
-      <span className={`${COL} hidden text-gray-500 sm:block`}>{n(funnel.conversando)}</span>
       <span className={`${COL} text-gray-500`}>{n(funnel.derivados)}</span>
       <span className={`${COL} text-gray-500`}>
         {funnel.ratio !== null ? `${funnel.ratio}%` : "—"}
@@ -83,6 +99,7 @@ export default function CampanasFunnel({
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
   const [todas, setTodas] = useState(false);
   const visibles = todas ? campanas : campanas.slice(0, TOP);
+  const showModal = useModalStore((s) => s.showModal);
 
   const toggle = (clave: string) =>
     setAbiertos((prev) => {
@@ -90,6 +107,14 @@ export default function CampanasFunnel({
       if (s.has(clave)) s.delete(clave);
       else s.add(clave);
       return s;
+    });
+
+  // Drill-down: abre en modal la lista nominal de los leads de este anuncio,
+  // cada uno enlazado a su conversación para ver en qué quedó.
+  const abrirLeads = (an: Anuncio) =>
+    showModal(<LeadsDeAnuncio adId={an.adId} proyecto={proyecto} rango={rango} />, {
+      title: an.anuncio || "Leads del anuncio",
+      widthClass: "max-w-lg",
     });
 
   return (
@@ -103,10 +128,10 @@ export default function CampanasFunnel({
           <span className="flex-1">Campaña / conjunto / anuncio</span>
           <div className="ml-auto flex shrink-0">
             <span className={COL}>Leads</span>
-            <span className={`${COL} hidden sm:block`}>Conv.</span>
             <span className={COL}>Deriv.</span>
             <span className={COL}>Ratio</span>
           </div>
+          <span className={ACT} />
         </div>
 
         <ul className="divide-y divide-gray-50">
@@ -126,6 +151,7 @@ export default function CampanasFunnel({
                     {esPlaceholder(c.campana) ? "📦 Catálogo dinámico" : c.campana}
                   </span>
                   <Metricas funnel={c} fuerte />
+                  <span className={ACT} />
                 </button>
 
                 {abiertos.has(kCampana) &&
@@ -150,6 +176,7 @@ export default function CampanasFunnel({
                             {a.adset}
                           </span>
                           <Metricas funnel={a.funnel} />
+                          <span className={ACT} />
                         </button>
 
                         {abiertos.has(kAdset) &&
@@ -161,23 +188,36 @@ export default function CampanasFunnel({
                             const kAnuncio = `n:${claveCampana}|${a.adset}|${an.adId || an.anuncio}|${iAn}`;
                             return (
                               <div key={kAnuncio}>
-                                <button
-                                  onClick={() => toggle(kAnuncio)}
-                                  className="flex w-full items-center gap-2 py-2 pl-5 text-left text-sm hover:bg-gray-50"
-                                >
-                                  <Chevron abierto={abiertos.has(kAnuncio)} />
-                                  <span className="min-w-0 flex-1 truncate text-left">
-                                    <span className="block truncate text-gray-600" title={an.anuncio}>
-                                      {an.anuncio}
-                                    </span>
-                                    {nombresRepetidos.has(an.anuncio) && an.adId && (
-                                      <span className="block truncate text-[10px] text-gray-400">
-                                        {an.adId}
+                                <div className="flex items-center gap-1 pl-5">
+                                  <button
+                                    onClick={() => toggle(kAnuncio)}
+                                    className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm hover:bg-gray-50"
+                                  >
+                                    <Chevron abierto={abiertos.has(kAnuncio)} />
+                                    <span className="min-w-0 flex-1 truncate text-left">
+                                      <span className="block truncate text-gray-600" title={an.anuncio}>
+                                        {an.anuncio}
                                       </span>
-                                    )}
-                                  </span>
-                                  <Metricas funnel={an} />
-                                </button>
+                                      {nombresRepetidos.has(an.anuncio) && an.adId && (
+                                        <span className="block truncate text-[10px] text-gray-400">
+                                          {an.adId}
+                                        </span>
+                                      )}
+                                    </span>
+                                    <Metricas funnel={an} />
+                                  </button>
+                                  {an.adId ? (
+                                    <button
+                                      onClick={() => abrirLeads(an)}
+                                      title="Ver los leads de este anuncio"
+                                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-[#00a884]"
+                                    >
+                                      <IconoLeads />
+                                    </button>
+                                  ) : (
+                                    <span className={ACT} />
+                                  )}
+                                </div>
                                 {abiertos.has(kAnuncio) && (
                                   <div className="border-l-2 border-gray-100 pb-2 pl-10">
                                     <AnuncioProyectos adId={an.adId} campaignId={c.campaignId} rango={rango} totalLeads={an.leads} proyecto={proyecto} />

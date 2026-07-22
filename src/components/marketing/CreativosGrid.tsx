@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import ChartCard from "@/components/dashboard/ChartCard";
+import { useModalStore } from "@/store/modalStore";
 import { esPlaceholder, type Creativo } from "@/lib/marketing";
 import type { RangoFechas } from "@/types";
 import AnuncioProyectos from "./AnuncioProyectos";
+import LeadsDeAnuncio from "./LeadsDeAnuncio";
 import EstadoDatos from "./EstadoDatos";
 
 const TOP = 9;
@@ -90,11 +92,20 @@ function TarjetaCreativo({
   totalDerivados: number;
 }) {
   const [verProyectos, setVerProyectos] = useState(false);
+  const showModal = useModalStore((s) => s.showModal);
   const c = creativo;
   // Participación: qué % de TODOS los derivados (del filtro actual) aportó
   // este anuncio. Distinto del ratio, que es la conversión interna del ad.
   const participacion =
     totalDerivados > 0 ? Math.round((c.derivados / totalDerivados) * 1000) / 10 : null;
+
+  // Drill-down: lista nominal de los leads de este creativo, cada uno
+  // enlazado a su conversación. Mismo modal que el funnel.
+  const abrirLeads = () =>
+    showModal(<LeadsDeAnuncio adId={c.adId} proyecto={proyecto} rango={rango} />, {
+      title: c.anuncio || c.campana || "Leads del anuncio",
+      widthClass: "max-w-lg",
+    });
 
   return (
     <div className="flex flex-col rounded-xl border border-gray-100 p-3">
@@ -155,9 +166,17 @@ function TarjetaCreativo({
         <span className="text-gray-500" title="Conversión del anuncio: derivados / leads del anuncio">
           {c.ratio !== null ? `${c.ratio}%` : "—"}
         </span>
+        {c.adId && (
+          <button
+            onClick={abrirLeads}
+            className="ml-auto font-medium text-[#00a884] hover:underline"
+          >
+            Leads
+          </button>
+        )}
         <button
           onClick={() => setVerProyectos((v) => !v)}
-          className="ml-auto font-medium text-[#00a884] hover:underline"
+          className={`${c.adId ? "" : "ml-auto"} font-medium text-[#00a884] hover:underline`}
         >
           {verProyectos ? "Ocultar" : "Proyectos"}
         </button>

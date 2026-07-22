@@ -12,6 +12,9 @@ import EstadoDatos from "./EstadoDatos";
 const COLORES: Record<string, string> = {
   meta_ad: "#2a78d6",
   meta_ads: "#2a78d6",
+  // Meta orgánico (post): azul cielo, emparentado con Meta Ads pero distinto.
+  meta_organic: "#3fa7d6",
+  web: "#00a884",
   organic: "#00a884",
   organico: "#00a884",
   direct: "#4a3aa7",

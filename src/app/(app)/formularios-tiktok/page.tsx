@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  useFormulariosTiktokCreativos,
   useFormulariosTiktokFunnel,
   useFormulariosTiktokStats,
   useFormulariosTiktokTotal,
@@ -15,13 +16,15 @@ import DateRangeFilter from "@/components/ui/DateRangeFilter";
 import FormulariosStatsTiles from "@/components/formularios/FormulariosStatsTiles";
 import FormulariosTiktokExport from "@/components/formularios/FormulariosTiktokExport";
 import CanalFunnel from "@/components/formularios/CanalFunnel";
+import TiktokCreativos from "@/components/formularios/TiktokCreativos";
 import type { RangoFechas } from "@/types";
 
 // Vista de leads capturados por TikTok Lead Generation (formulario_tiktok).
 // Mismo layout que Forms · Meta, pero el funnel es de 3 niveles: TikTok no
 // manda UTMs ni conjunto — el webhook guarda campaign_name/ad_name/ad_id.
-// No hay grid de creativos: la tabla no guarda thumbnail y TikTok no expone
-// una URL pública del anuncio a partir del ad_id.
+// El grid de creativos usa thumbnail_url/video_url resueltos vía la API de
+// TikTok (backfill por nombre de anuncio, ya que el ad_id del webhook viene
+// corrupto por el redondeo de IDs grandes en n8n).
 export default function FormulariosTiktokPage() {
   const [plazas, setPlazas] = useState<string[]>([]);
   const [campana, setCampana] = useState("");
@@ -37,6 +40,7 @@ export default function FormulariosTiktokPage() {
 
   const stats = useFormulariosTiktokStats(filtros);
   const funnel = useFormulariosTiktokFunnel(filtros);
+  const creativos = useFormulariosTiktokCreativos(filtros);
   const { data: total = 0 } = useFormulariosTiktokTotal(filtros);
 
   return (
@@ -75,6 +79,14 @@ export default function FormulariosTiktokPage() {
             titulo="Funnel por campaña y anuncio"
             subtitulo="Qué campaña de TikTok trae leads y cuáles terminan derivados · expande para ver anuncios y proyectos de interés"
             encabezado="Campaña / anuncio / proyecto"
+          />
+        </div>
+
+        <div className="mt-4">
+          <TiktokCreativos
+            creativos={creativos.data ?? []}
+            cargando={creativos.isLoading}
+            error={creativos.isError}
           />
         </div>
       </div>

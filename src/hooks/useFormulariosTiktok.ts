@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
 import { funnelDe, type FilaCanal } from "@/lib/canalFunnel";
+import type { Funnel } from "@/lib/formulariosFunnel";
 import type { FormulariosStats, LeadFormularioTiktok, RangoFechas } from "@/types";
 
 const LOTE = 500;
@@ -82,23 +83,75 @@ export function useTodosFormulariosTiktok(filtros: FiltrosTiktok, enabled = fals
   });
 }
 
+// Creativo de TikTok: agrupado por nombre de anuncio (ad_name), con su
+// miniatura y link de video ya resueltos en la fila (backfill por API de
+// TikTok, guardados en formulario_tiktok). No usa el ad_id porque el que
+// guardó el webhook está corrupto (redondeo de IDs grandes en n8n).
+export interface CreativoTiktok {
+  anuncio: string;
+  campana: string;
+  thumbnailUrl: string;
+  videoUrl: string | null;
+  funnel: Funnel;
+}
+
+function creativosTiktokDeFilas(filas: Record<string, unknown>[]): CreativoTiktok[] {
+  const txt = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const grupos = new Map<string, { campana: string; thumb: string; video: string; leads: number; deriv: number }>();
+  for (const f of filas) {
+    const anuncio = txt(f.ad_name) || "(sin anuncio)";
+    const g = grupos.get(anuncio) ?? { campana: txt(f.campaign_name) || "(sin campaña)", thumb: "", video: "", leads: 0, deriv: 0 };
+    if (!g.thumb && txt(f.thumbnail_url)) g.thumb = txt(f.thumbnail_url);
+    if (!g.video && txt(f.video_url)) g.video = txt(f.video_url);
+    g.leads += Number(f.leads) || 0;
+    g.deriv += Number(f.derivados) || 0;
+    grupos.set(anuncio, g);
+  }
+  return [...grupos.entries()]
+    .map(([anuncio, g]) => ({
+      anuncio,
+      campana: g.campana,
+      thumbnailUrl: g.thumb,
+      videoUrl: g.video || null,
+      funnel: funnelDe(g.leads, g.deriv),
+    }))
+    .sort((a, b) => b.funnel.leads - a.funnel.leads);
+}
+
+// Las filas crudas de /formularios/tiktok/funnel bajo una única queryKey:
+// el funnel y los creativos comparten esta consulta (React Query hace UNA
+// sola llamada) y cada uno la transforma con su propio `select`.
+type FilaRaw = Record<string, unknown>;
+function opcionesFilas(filtros: FiltrosTiktok) {
+  return {
+    queryKey: ["formularios-tiktok-funnel", ...claveFiltros(filtros)],
+    queryFn: (): Promise<FilaRaw[]> =>
+      api
+        .get("/api/crm/formularios/tiktok/funnel", { params: paramsFiltro(filtros) })
+        .then((r) => (Array.isArray(r.data) ? (r.data as FilaRaw[]) : [])),
+    refetchInterval: 60_000,
+  };
+}
+
+export function useFormulariosTiktokCreativos(filtros: FiltrosTiktok) {
+  return useQuery({
+    ...opcionesFilas(filtros),
+    select: creativosTiktokDeFilas,
+  });
+}
+
 // Filas planas campaña → anuncio → proyecto (GET /formularios/tiktok/funnel),
 // mapeadas a los 3 niveles genéricos de arbolCanal (lib/canalFunnel.ts)
 export function useFormulariosTiktokFunnel(filtros: FiltrosTiktok) {
-  return useQuery<FilaCanal[]>({
-    queryKey: ["formularios-tiktok-funnel", ...claveFiltros(filtros)],
-    queryFn: () =>
-      api
-        .get("/api/crm/formularios/tiktok/funnel", { params: paramsFiltro(filtros) })
-        .then((r) =>
-          (Array.isArray(r.data) ? r.data : []).map((f: Record<string, unknown>) => ({
-            n1: (typeof f.campaign_name === "string" && f.campaign_name.trim()) || "(sin campaña)",
-            n2: (typeof f.ad_name === "string" && f.ad_name.trim()) || "(sin anuncio)",
-            // Ya viene resuelto a "Sin proyecto" desde el backend
-            n3: (typeof f.proyecto_nombre === "string" && f.proyecto_nombre.trim()) || "Sin proyecto",
-            funnel: funnelDe(Number(f.leads) || 0, Number(f.derivados) || 0),
-          }))
-        ),
-    refetchInterval: 60_000,
+  return useQuery({
+    ...opcionesFilas(filtros),
+    select: (rows: FilaRaw[]): FilaCanal[] =>
+      rows.map((f) => ({
+        n1: (typeof f.campaign_name === "string" && f.campaign_name.trim()) || "(sin campaña)",
+        n2: (typeof f.ad_name === "string" && f.ad_name.trim()) || "(sin anuncio)",
+        // Ya viene resuelto a "Sin proyecto" desde el backend
+        n3: (typeof f.proyecto_nombre === "string" && f.proyecto_nombre.trim()) || "Sin proyecto",
+        funnel: funnelDe(Number(f.leads) || 0, Number(f.derivados) || 0),
+      })),
   });
 }

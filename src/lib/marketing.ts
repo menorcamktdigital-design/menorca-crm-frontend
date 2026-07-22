@@ -70,6 +70,11 @@ function sumarFunnels(items: Funnel[]): Funnel {
 const FUENTE_LABELS: Record<string, string> = {
   meta_ad: "Meta Ads",
   meta_ads: "Meta Ads",
+  // Post orgánico de Facebook/Instagram (referral.source_type = 'post'):
+  // clic a WhatsApp desde una publicación, no un anuncio pagado. Distinto
+  // del orgánico de web (código 'web').
+  meta_organic: "Meta Orgánico",
+  web: "Web",
   organic: "Orgánico",
   organico: "Orgánico",
   direct: "Directo",
@@ -257,6 +262,29 @@ export function proyectosDeAnuncioDeApi(rows: Row[]): ProyectoDeAnuncio[] {
       total: num(r.total ?? r.total_leads),
     }))
     .sort((a, b) => b.total - a.total);
+}
+
+// ---- GET /stats/anuncios/leads?ad_id=... — lista nominal de un anuncio ----
+// Una fila por lead: para el drill-down que abre la conversación de cada uno.
+
+export interface LeadDeAnuncio {
+  numero: string;
+  nombre: string;
+  estado: string;
+  proyecto: string;
+  creadoEn: string | null;
+  ultimaActividad: string | null;
+}
+
+export function leadsDeAnuncioDeApi(rows: Row[]): LeadDeAnuncio[] {
+  return rows.map((r) => ({
+    numero: texto(r.numero),
+    nombre: texto(r.nombre),
+    estado: texto(r.estado),
+    proyecto: texto(r.proyecto_interes ?? r.proyecto) || "Sin proyecto",
+    creadoEn: typeof r.creado_en === "string" ? r.creado_en : null,
+    ultimaActividad: typeof r.ultima_actividad === "string" ? r.ultima_actividad : null,
+  }));
 }
 
 // ---- GET /stats/multitouch — 1 touch vs 2+ antes de escribir ----

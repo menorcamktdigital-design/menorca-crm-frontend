@@ -6,6 +6,7 @@ import {
   campanasDeApi,
   creativosDeApi,
   fuentesDeApi,
+  leadsDeAnuncioDeApi,
   multitouchDeApi,
   proyectosDeAnuncioDeApi,
   type Anuncio,
@@ -13,6 +14,7 @@ import {
   type Creativo,
   type Fuente,
   type GrupoTouch,
+  type LeadDeAnuncio,
   type ProyectoDeAnuncio,
 } from "@/lib/marketing";
 import type { RangoFechas } from "@/types";
@@ -112,6 +114,28 @@ export function useProyectosDeAnuncio(adId: string, campaignId?: string, proyect
           params: { ad_id: adId, campaign_id: campaignId, ...paramsFiltro(proyecto, rango) },
         })
         .then((r) => proyectosDeAnuncioDeApi(filas(r.data))),
+    enabled: adId.length > 0,
+  });
+}
+
+// Lista nominal de los leads de un anuncio (para el drill-down que abre la
+// conversación). Se pide bajo demanda al abrir el modal. Filtra por ad_id
+// (identificador único real de Meta) y respeta el rango/plaza activos.
+export function useLeadsDeAnuncio(adId: string, proyecto?: string, rango?: RangoFechas) {
+  return useQuery<LeadDeAnuncio[]>({
+    queryKey: [
+      "stats-anuncio-leads",
+      adId,
+      proyecto ?? "todas",
+      rango?.desde ?? "",
+      rango?.hasta ?? "",
+    ],
+    queryFn: () =>
+      api
+        .get("/api/crm/stats/anuncios/leads", {
+          params: { ad_id: adId, ...paramsFiltro(proyecto, rango) },
+        })
+        .then((r) => leadsDeAnuncioDeApi(filas(r.data))),
     enabled: adId.length > 0,
   });
 }
