@@ -65,12 +65,14 @@ export interface FichaContacto {
 }
 
 export type EstadoEntrega = "sent" | "delivered" | "read" | "failed";
+export type MediaType = "image" | "video" | "audio" | "document";
 
 export interface Mensaje {
   id?: number;
   rol: "user" | "assistant";
   mensaje: string;
   media_url?: string | null;
+  media_type?: MediaType | null;
   fecha: string; // ISO date
   estado_entrega?: EstadoEntrega | null;
   wamid?: string | null;
