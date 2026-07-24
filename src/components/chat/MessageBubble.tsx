@@ -13,6 +13,14 @@ function tipoMedia(m: Mensaje): MediaType | null {
 // texto placeholder que no vale la pena mostrar bajo la media
 const PLACEHOLDERS = new Set(["[imagen]", "[video]", "[audio]", "[documento]"]);
 
+// etiqueta limpia cuando el placeholder queda sin media (borrada o expirada)
+const PLACEHOLDER_LABELS: Record<string, string> = {
+  "[imagen]": "📷 Imagen",
+  "[video]": "🎥 Video",
+  "[audio]": "🎤 Audio",
+  "[documento]": "📎 Documento",
+};
+
 export default function MessageBubble({ mensaje }: { mensaje: Mensaje }) {
   const esIA = mensaje.rol === "assistant";
   const media = mensaje.media_url;
@@ -74,7 +82,9 @@ export default function MessageBubble({ mensaje }: { mensaje: Mensaje }) {
 
         {!media && !mostrarTexto && (
           <div className="px-3 py-2">
-            <p className="text-sm text-gray-400">{texto || " "}</p>
+            <p className="text-sm text-gray-400">
+              {PLACEHOLDER_LABELS[texto] || texto || " "}
+            </p>
           </div>
         )}
 

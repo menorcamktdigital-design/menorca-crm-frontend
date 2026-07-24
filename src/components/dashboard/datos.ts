@@ -36,8 +36,14 @@ export interface DiaActividad {
   // desglose de derivados por fuente del lead (Meta Ads vs directo)
   derivadosMeta: number;
   derivadosDirecto: number;
+  // conversaciones del día por fuente (para comparar Meta vs orgánico)
+  conversacionesMeta: number;
+  conversacionesDirecto: number;
   // % derivados/conversaciones del día (null cuando no hubo actividad)
   ratio: number | null;
+  // ratio de derivación por fuente: derivados/conversaciones de esa fuente
+  ratioMeta: number | null;
+  ratioDirecto: number | null;
 }
 
 export const DIAS_ACTIVIDAD = 14;
@@ -123,6 +129,8 @@ function escalaDias(rango?: RangoFechas): {
   derivados: number;
   derivadosMeta: number;
   derivadosDirecto: number;
+  conversacionesMeta: number;
+  conversacionesDirecto: number;
 }[] {
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -146,6 +154,8 @@ function escalaDias(rango?: RangoFechas): {
       derivados: 0,
       derivadosMeta: 0,
       derivadosDirecto: 0,
+      conversacionesMeta: 0,
+      conversacionesDirecto: 0,
     });
   }
   return dias;
@@ -163,9 +173,15 @@ export function actividadDesdeStats(
     dia.derivados = Number(r.derivados) || 0;
     dia.derivadosMeta = Number(r.derivados_meta) || 0;
     dia.derivadosDirecto = Number(r.derivados_directo) || 0;
+    dia.conversacionesMeta = Number(r.total_meta) || 0;
+    dia.conversacionesDirecto = Number(r.total_directo) || 0;
   }
+  const pct = (num: number, den: number) =>
+    den > 0 ? Math.round((num / den) * 1000) / 10 : null;
   return dias.map((d) => ({
     ...d,
-    ratio: d.leads > 0 ? Math.round((d.derivados / d.leads) * 1000) / 10 : null,
+    ratio: pct(d.derivados, d.leads),
+    ratioMeta: pct(d.derivadosMeta, d.conversacionesMeta),
+    ratioDirecto: pct(d.derivadosDirecto, d.conversacionesDirecto),
   }));
 }

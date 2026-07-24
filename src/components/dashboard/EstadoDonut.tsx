@@ -32,8 +32,8 @@ export default function EstadoDonut({
                 ))}
               </Pie>
               <Tooltip
-                formatter={(v) => [`${v} leads`, ""]}
-                separator=""
+                formatter={(v, n) => [`${v} leads`, n]}
+                separator=": "
                 contentStyle={{
                   borderRadius: 8,
                   border: "1px solid #e9edef",

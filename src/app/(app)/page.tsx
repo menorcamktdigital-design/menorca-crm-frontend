@@ -14,7 +14,7 @@ import {
 import StatTiles from "@/components/dashboard/StatTiles";
 import EstadoDonut from "@/components/dashboard/EstadoDonut";
 import PlazaBar from "@/components/dashboard/PlazaBar";
-import ActividadChart from "@/components/dashboard/ActividadChart";
+import ActividadFuenteChart from "@/components/dashboard/ActividadFuenteChart";
 import PlazaFilter from "@/components/dashboard/PlazaFilter";
 import ExportButton from "@/components/dashboard/ExportButton";
 import DateRangeFilter from "@/components/ui/DateRangeFilter";
@@ -89,9 +89,15 @@ export default function DashboardPage() {
           <PlazaBar conteos={conteosPlaza} seleccionada={plazaResaltada} />
         </div>
 
-        <div className="mt-4">
-          <ActividadChart
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ActividadFuenteChart
             dias={dias}
+            fuente="meta"
+            periodo={rangoActivo ? "rango seleccionado" : undefined}
+          />
+          <ActividadFuenteChart
+            dias={dias}
+            fuente="directo"
             periodo={rangoActivo ? "rango seleccionado" : undefined}
           />
         </div>

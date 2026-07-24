@@ -115,6 +115,8 @@ export interface StatsProyecto {
 export interface StatsActividad {
   fecha: string;
   total: string;
+  total_meta: string;
+  total_directo: string;
   derivados: string;
   derivados_meta: string;
   derivados_directo: string;
