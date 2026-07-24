@@ -184,7 +184,7 @@ export default function VentasComparativo({
               Sin datos
             </div>
           ) : (
-            <div className="max-h-[300px] space-y-2 overflow-y-auto">
+            <div className="max-h-75 space-y-2 overflow-y-auto">
               {rankingVendedores.map((v, i) => {
                 const pct =
                   totalVentas > 0 ? (v.total / totalVentas) * 100 : 0;
