@@ -5,7 +5,10 @@ export type EstadoLead =
   | "no_contesta"
   | "no_interesado"
   | "visita_agendada"
-  | "recontacto";
+  | "recontacto"
+  // Ya gestionado en Sperant por una via distinta de WhatsApp (tiktok, web,
+  // facebook). No lo derivó la IA, así que no debe contarse como derivado propio.
+  | "derivado_otro_canal";
 
 export interface Contacto {
   numero: string;
@@ -228,4 +231,8 @@ export const BADGE_CONFIG: Record<string, { label: string; className: string }> 
   visita_agendada: { label: "Visita", className: "bg-blue-100 text-blue-800" },
   nuevo: { label: "Nuevo", className: "bg-slate-100 text-slate-600" },
   recontacto: { label: "Recontacto", className: "bg-orange-100 text-orange-800" },
+  derivado_otro_canal: {
+    label: "Derivado (otro canal)",
+    className: "bg-teal-100 text-teal-800",
+  },
 };

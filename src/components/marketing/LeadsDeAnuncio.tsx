@@ -36,65 +36,70 @@ export default function LeadsDeAnuncio({
   }, [leads, busca]);
 
   if (q.isLoading)
-    return <p className="py-6 text-center text-sm text-gray-400">Cargando leads...</p>;
+    return <p className="px-5 py-10 text-center text-sm text-gray-400">Cargando leads...</p>;
   if (q.isError)
     return (
-      <p className="py-6 text-center text-sm text-gray-400">
+      <p className="px-5 py-10 text-center text-sm text-gray-400">
         No se pudieron cargar los leads de este anuncio.
       </p>
     );
 
   if (leads.length === 0)
     return (
-      <p className="py-6 text-center text-sm text-gray-400">
+      <p className="px-5 py-10 text-center text-sm text-gray-400">
         Sin leads para este anuncio con el filtro actual.
       </p>
     );
 
+  // El panel del modal ya es h-full y aporta el unico scroll: aqui no se
+  // vuelve a limitar la altura ni se anida otro overflow. El buscador queda
+  // sticky porque un anuncio puede traer cientos de leads.
   return (
-    <div className="flex max-h-[70vh] flex-col">
-      <input
-        type="search"
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-        placeholder="Buscar por proyecto o nombre..."
-        className="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#00a884] focus:ring-1 focus:ring-[#00a884]"
-      />
-      <p className="mb-2 text-xs text-gray-400">
-        {filtrados.length.toLocaleString("es-PE")}
-        {filtrados.length !== leads.length ? ` de ${leads.length.toLocaleString("es-PE")}` : ""} lead
-        {leads.length > 1 ? "s" : ""} · clic para abrir la conversación
-      </p>
+    <div className="flex min-h-full flex-col">
+      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-5 pt-4 pb-3">
+        <input
+          type="search"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por proyecto o nombre..."
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#00a884] focus:ring-1 focus:ring-[#00a884]"
+        />
+        <p className="mt-2 text-xs text-gray-400">
+          {filtrados.length.toLocaleString("es-PE")}
+          {filtrados.length !== leads.length ? ` de ${leads.length.toLocaleString("es-PE")}` : ""} lead
+          {leads.length > 1 ? "s" : ""} · clic para abrir la conversación
+        </p>
+      </div>
       {filtrados.length === 0 ? (
-        <p className="py-6 text-center text-sm text-gray-400">
+        <p className="px-5 py-10 text-center text-sm text-gray-400">
           Ningún lead coincide con &ldquo;{busca}&rdquo;.
         </p>
       ) : (
-      <ul className="divide-y divide-gray-50 overflow-y-auto">
-        {filtrados.map((l) => (
-          <li key={l.numero}>
-            <a
-              href={`/conversaciones?c=${slugDeNumero(l.numero)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Abrir la conversación de este lead"
-              className="flex items-center gap-3 py-2 hover:bg-gray-50"
-            >
-              <Avatar nombre={l.nombre} numero={l.numero} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-gray-900">
-                  {l.nombre || "Sin nombre"}
-                </p>
-                <p className="truncate text-xs text-gray-400">
-                  {l.proyecto}
-                  {l.creadoEn ? ` · ${formatFechaHora(l.creadoEn)}` : ""}
-                </p>
-              </div>
-              <Badge estado={l.estado} />
-            </a>
-          </li>
-        ))}
-      </ul>
+        <ul className="divide-y divide-gray-50 px-3 py-2">
+          {filtrados.map((l) => (
+            <li key={l.numero}>
+              <a
+                href={`/conversaciones?c=${slugDeNumero(l.numero)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Abrir la conversación de este lead"
+                className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-gray-50"
+              >
+                <Avatar nombre={l.nombre} numero={l.numero} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-900">
+                    {l.nombre || "Sin nombre"}
+                  </p>
+                  <p className="truncate text-xs text-gray-400">
+                    {l.proyecto}
+                    {l.creadoEn ? ` · ${formatFechaHora(l.creadoEn)}` : ""}
+                  </p>
+                </div>
+                <Badge estado={l.estado} />
+              </a>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
