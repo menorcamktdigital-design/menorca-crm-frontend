@@ -128,7 +128,7 @@ export default function VentasComparativo({
                     border: `1px solid ${GRID}`,
                     fontSize: 12,
                   }}
-                  formatter={(value: number) => [`${value} ventas`, "Total"]}
+                  formatter={(value) => [`${value} ventas`, "Total"]}
                 />
                 <Bar dataKey="ventas" radius={[6, 6, 0, 0]} fill={ACCENT} />
               </BarChart>
