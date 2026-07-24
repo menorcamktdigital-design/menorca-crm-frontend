@@ -64,12 +64,16 @@ export interface FichaContacto {
   touches: Touch[];
 }
 
+export type EstadoEntrega = "sent" | "delivered" | "read" | "failed";
+
 export interface Mensaje {
   id?: number;
   rol: "user" | "assistant";
   mensaje: string;
   media_url?: string | null;
   fecha: string; // ISO date
+  estado_entrega?: EstadoEntrega | null;
+  wamid?: string | null;
 }
 
 // Filtro por fecha (YYYY-MM-DD, hasta inclusivo). El backend lo aplica

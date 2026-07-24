@@ -1,5 +1,6 @@
 import type { Mensaje } from "@/types";
 import { formatHora } from "@/lib/fecha";
+import MessageStatus from "./MessageStatus";
 
 export default function MessageBubble({ mensaje }: { mensaje: Mensaje }) {
   const esIA = mensaje.rol === "assistant";
@@ -37,8 +38,9 @@ export default function MessageBubble({ mensaje }: { mensaje: Mensaje }) {
             </p>
           </div>
         )}
-        <p className="px-3 pb-1.5 text-right text-[11px] text-gray-400">
+        <p className="px-3 pb-1.5 text-right text-[11px] text-gray-400 flex items-center justify-end gap-1">
           {formatHora(mensaje.fecha)}
+          {esIA && <MessageStatus estado={mensaje.estado_entrega} />}
         </p>
       </div>
     </div>
