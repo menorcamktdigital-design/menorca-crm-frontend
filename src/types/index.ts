@@ -182,6 +182,35 @@ export interface LeadFormularioWeb {
   creado_en: string;
 }
 
+// GET /api/ventas/historico — ventas del mes cruzadas con interacciones de Sperant
+export interface VentaAtribuida {
+  documento: string;
+  codigo_proyecto: number;
+  nombre_proyecto: string;
+  codigo_unidad: string;
+  precio_lista: number;
+  fecha_cierre: string;
+  estado_contrato: string;
+  vendedor: string;
+  canal: string;
+  medio: string;
+  utm_source: string | null;
+  utm_campaign: string | null;
+}
+
+export interface ResumenCanal {
+  canal: string;
+  total: number;
+  campanas: { nombre: string; total: number }[];
+}
+
+export interface VentasHistoricoData {
+  mes: number;
+  total: number;
+  por_canal: ResumenCanal[];
+  ventas: VentaAtribuida[];
+}
+
 // Configuración de badge por estado
 export const BADGE_CONFIG: Record<string, { label: string; className: string }> = {
   en_conversacion: { label: "Conversando", className: "bg-amber-100 text-amber-800" },

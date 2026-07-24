@@ -23,8 +23,7 @@ import type { RangoFechas } from "@/types";
 // Mismo layout que Forms · Meta, pero el funnel es de 3 niveles: TikTok no
 // manda UTMs ni conjunto — el webhook guarda campaign_name/ad_name/ad_id.
 // El grid de creativos usa thumbnail_url/video_url resueltos vía la API de
-// TikTok (backfill por nombre de anuncio, ya que el ad_id del webhook viene
-// corrupto por el redondeo de IDs grandes en n8n).
+// TikTok (backfill). Agrupa por ad_id.
 export default function FormulariosTiktokPage() {
   const [plazas, setPlazas] = useState<string[]>([]);
   const [campana, setCampana] = useState("");

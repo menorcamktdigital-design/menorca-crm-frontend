@@ -83,10 +83,6 @@ export function useTodosFormulariosTiktok(filtros: FiltrosTiktok, enabled = fals
   });
 }
 
-// Creativo de TikTok: agrupado por nombre de anuncio (ad_name), con su
-// miniatura y link de video ya resueltos en la fila (backfill por API de
-// TikTok, guardados en formulario_tiktok). No usa el ad_id porque el que
-// guardó el webhook está corrupto (redondeo de IDs grandes en n8n).
 export interface CreativoTiktok {
   anuncio: string;
   campana: string;
@@ -97,19 +93,20 @@ export interface CreativoTiktok {
 
 function creativosTiktokDeFilas(filas: Record<string, unknown>[]): CreativoTiktok[] {
   const txt = (v: unknown) => (typeof v === "string" ? v.trim() : "");
-  const grupos = new Map<string, { campana: string; thumb: string; video: string; leads: number; deriv: number }>();
+  const grupos = new Map<string, { anuncio: string; campana: string; thumb: string; video: string; leads: number; deriv: number }>();
   for (const f of filas) {
+    const key = txt(f.ad_id) || txt(f.ad_name) || "(sin anuncio)";
     const anuncio = txt(f.ad_name) || "(sin anuncio)";
-    const g = grupos.get(anuncio) ?? { campana: txt(f.campaign_name) || "(sin campaña)", thumb: "", video: "", leads: 0, deriv: 0 };
+    const g = grupos.get(key) ?? { anuncio, campana: txt(f.campaign_name) || "(sin campaña)", thumb: "", video: "", leads: 0, deriv: 0 };
     if (!g.thumb && txt(f.thumbnail_url)) g.thumb = txt(f.thumbnail_url);
     if (!g.video && txt(f.video_url)) g.video = txt(f.video_url);
     g.leads += Number(f.leads) || 0;
     g.deriv += Number(f.derivados) || 0;
-    grupos.set(anuncio, g);
+    grupos.set(key, g);
   }
   return [...grupos.entries()]
-    .map(([anuncio, g]) => ({
-      anuncio,
+    .map(([, g]) => ({
+      anuncio: g.anuncio,
       campana: g.campana,
       thumbnailUrl: g.thumb,
       videoUrl: g.video || null,
