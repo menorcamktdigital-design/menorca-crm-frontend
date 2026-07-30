@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/axios";
 import { useVentasHistorico } from "@/hooks/useVentasHistorico";
 import { useVentasComparativo } from "@/hooks/useVentasComparativo";
 import VentasStatTiles from "@/components/ventas/VentasStatTiles";
@@ -54,6 +56,35 @@ export default function VentasPage() {
   const [proyecto, setProyecto] = useState("todos");
   const { data, isLoading, isError } = useVentasHistorico(mes);
   const comparativo = useVentasComparativo(mesActual);
+  const queryClient = useQueryClient();
+  const [sincronizando, setSincronizando] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const detenerPolling = () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = null;
+    setSincronizando(false);
+  };
+
+  const actualizar = useMutation({
+    mutationFn: () => api.post("/api/ventas/actualizar").then((r) => r.data),
+    onSuccess: () => {
+      setSincronizando(true);
+      pollRef.current = setInterval(async () => {
+        const { data: estado } = await api.get<{ sincronizando: number[] }>(
+          "/api/ventas/actualizar"
+        );
+        queryClient.invalidateQueries({ queryKey: ["ventas-historico"] });
+        if (estado.sincronizando.length === 0) detenerPolling();
+      }, 2000);
+    },
+  });
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   const proyectos = useMemo(() => {
     if (!data?.ventas) return [];
@@ -107,15 +138,34 @@ export default function VentasPage() {
               Atribución de canal (first touch)
             </p>
           </div>
-          <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
-            <button onClick={() => setVista("mes")} className={tabClass(vista === "mes")}>
-              Por mes
-            </button>
-            <button onClick={() => setVista("evolucion")} className={tabClass(vista === "evolucion")}>
-              Evolución
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+              <button onClick={() => setVista("mes")} className={tabClass(vista === "mes")}>
+                Por mes
+              </button>
+              <button onClick={() => setVista("evolucion")} className={tabClass(vista === "evolucion")}>
+                Evolución
+              </button>
+            </div>
+            <button
+              onClick={() => actualizar.mutate()}
+              disabled={actualizar.isPending || sincronizando}
+              className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {actualizar.isPending || sincronizando ? "Actualizando..." : "Actualizar datos"}
             </button>
           </div>
         </div>
+        {sincronizando && (
+          <p className="mb-3 text-xs text-gray-500">
+            Sincronizando con Sperant en segundo plano, los datos se irán actualizando.
+          </p>
+        )}
+        {actualizar.isError && (
+          <p className="mb-3 text-xs text-red-500">
+            Error al actualizar. Intenta de nuevo.
+          </p>
+        )}
 
         {/* Filtros */}
         <div className="mb-4 flex flex-wrap items-center gap-2">

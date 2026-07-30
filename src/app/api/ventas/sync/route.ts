@@ -68,6 +68,8 @@ interface InteraccionRaw {
   canal_entrada_rastro: string | null;
   medio_captacion_rastro: string | null;
   fecha_creacion: string;
+  codigo_proyecto: string | null;
+  nombre_proyecto: string | null;
 }
 
 interface Atribucion {
@@ -138,6 +140,43 @@ function determinarAtribucion(interacciones: InteraccionRaw[]): Atribucion {
   return { canal: "Sin atribuir", medio: "sin datos", utm_source: null, utm_campaign: null };
 }
 
+/* ---------- Normalización de nombres de proyecto ------------------------- */
+/**
+ * Sperant escribe el mismo proyecto con distinta capitalización ("San Antonio
+ * De Pachacamac 2" y "San Antonio de Pachacamac 2"), lo que partía el filtro
+ * en dos entradas. Se unifica a formato Título con preposiciones en minúscula.
+ */
+const PREPOSICIONES = new Set(["de", "del", "y"]);
+
+function normalizarNombre(texto: string): string {
+  const limpio = texto.trim().replace(/\s+/g, " ");
+  let esPrimera = true;
+  return limpio.toLowerCase().replace(/\p{L}[\p{L}\p{M}]*/gu, (palabra) => {
+    const primera = esPrimera;
+    esPrimera = false;
+    if (!primera && PREPOSICIONES.has(palabra)) return palabra;
+    return palabra[0].toUpperCase() + palabra.slice(1);
+  });
+}
+
+/* ---------- Nombre de proyecto desde las interacciones ------------------- */
+/**
+ * Sperant no devuelve nombre_proyecto en consultar_ventas_mes, pero sí en
+ * consultar_interacciones. Un cliente puede tener interacciones de varios
+ * proyectos, así que se busca por codigo_proyecto de la venta (que coincide
+ * con el de la interacción) y no por la primera que aparezca.
+ */
+function resolverNombreProyecto(
+  codigoProyecto: number,
+  interacciones: InteraccionRaw[]
+): string {
+  const match = interacciones.find(
+    (i) => Number(i.codigo_proyecto) === codigoProyecto && i.nombre_proyecto
+  );
+  if (match?.nombre_proyecto) return normalizarNombre(match.nombre_proyecto);
+  return PROYECTOS_MAP[codigoProyecto] || `Proyecto ${codigoProyecto}`;
+}
+
 /* ---------- Fetch de interacciones con concurrencia ---------------------- */
 async function fetchInteraccionesBatch(
   dnis: string[]
@@ -178,12 +217,13 @@ async function procesarMes(mes: number) {
 
   const ventas = ventasRaw.map((v) => {
     const dni = String(v.documento_cliente_titular ?? "");
-    const atrib = determinarAtribucion(interacciones.get(dni) ?? []);
+    const ints = interacciones.get(dni) ?? [];
+    const atrib = determinarAtribucion(ints);
     const codProy = Number(v.codigo_proyecto) || 0;
     return {
       documento: dni,
       codigo_proyecto: codProy,
-      nombre_proyecto: PROYECTOS_MAP[codProy] || `Proyecto ${codProy}`,
+      nombre_proyecto: resolverNombreProyecto(codProy, ints),
       codigo_unidad: String(v.codigo_unidad ?? ""),
       precio_lista: Number(v.precio_lista) || 0,
       fecha_cierre: String(v.fecha_cierre ?? ""),
