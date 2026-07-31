@@ -126,7 +126,9 @@ export interface StatsActividad {
 }
 
 // GET /api/crm/visitas — contactos con estado visita_agendada (fila
-// completa de contactos; fecha_visita solo si la columna existe en la BD)
+// completa de contactos + fecha_visita, que el backend trae de la tabla
+// `visitas`). Es null en visitas antiguas agendadas antes de que el
+// agente empezara a guardar la fecha.
 export interface Visita extends Contacto {
   fecha_visita?: string | null;
 }
@@ -207,12 +209,37 @@ export interface VentaAtribuida {
   medio: string;
   utm_source: string | null;
   utm_campaign: string | null;
+  // Nivel de anuncio: Sperant lo manda como texto en utm_content. El ad_id se
+  // resuelve cruzando ese nombre contra Meta (null si no hay token o no cruza).
+  // Opcionales: las ventas cacheadas antes de este cambio no los traen.
+  utm_content?: string | null;
+  ad_id?: string | null;
+}
+
+// Anuncio dentro de una campaña. `ad_id` no nulo permite el link directo a
+// Ads Manager; si es null solo se puede buscar por nombre.
+export interface ResumenAnuncio {
+  nombre: string;
+  total: number;
+  monto: number;
+  ad_id: string | null;
+}
+
+// `monto` y `anuncios` son opcionales porque el cache en Postgres puede tener
+// filas guardadas antes de que existieran esos campos: hasta el siguiente sync
+// llegan undefined y la UI debe tolerarlo.
+export interface ResumenCampana {
+  nombre: string;
+  total: number;
+  monto?: number;
+  anuncios?: ResumenAnuncio[];
 }
 
 export interface ResumenCanal {
   canal: string;
   total: number;
-  campanas: { nombre: string; total: number }[];
+  monto?: number;
+  campanas: ResumenCampana[];
 }
 
 export interface VentasHistoricoData {

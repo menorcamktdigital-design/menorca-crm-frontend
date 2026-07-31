@@ -1,4 +1,6 @@
 import { query } from "@/lib/db";
+import { obtenerMapaAnuncios, resolverAdId } from "@/lib/meta-ads";
+import { agruparPorCanal } from "@/lib/ventas-agrupar";
 
 const SPERANT = "https://apirest.menorca.services/api";
 const CONCURRENCY = 15;
@@ -85,6 +87,7 @@ interface InteraccionRaw {
   fecha_creacion: string;
   codigo_proyecto: string | null;
   nombre_proyecto: string | null;
+  utm_content: string | null;
 }
 
 interface Atribucion {
@@ -92,12 +95,13 @@ interface Atribucion {
   medio: string;
   utm_source: string | null;
   utm_campaign: string | null;
+  utm_content: string | null;
 }
 
 /* ---------- Atribución (first touch) ------------------------------------- */
 function determinarAtribucion(interacciones: InteraccionRaw[]): Atribucion {
   if (!interacciones.length)
-    return { canal: "Sin atribuir", medio: "sin datos", utm_source: null, utm_campaign: null };
+    return { canal: "Sin atribuir", medio: "sin datos", utm_source: null, utm_campaign: null, utm_content: null };
 
   const sorted = [...interacciones].sort(
     (a, b) => new Date(a.fecha_creacion).getTime() - new Date(b.fecha_creacion).getTime()
@@ -112,6 +116,7 @@ function determinarAtribucion(interacciones: InteraccionRaw[]): Atribucion {
       medio: "facebook",
       utm_source: fbConCampana.utm_source,
       utm_campaign: fbConCampana.utm_campaign,
+      utm_content: fbConCampana.utm_content,
     };
   }
 
@@ -128,6 +133,7 @@ function determinarAtribucion(interacciones: InteraccionRaw[]): Atribucion {
         medio,
         utm_source: creacion.utm_source,
         utm_campaign: creacion.utm_campaign,
+        utm_content: creacion.utm_content,
       };
     }
   }
@@ -140,6 +146,7 @@ function determinarAtribucion(interacciones: InteraccionRaw[]): Atribucion {
       medio,
       utm_source: conUtm.utm_source,
       utm_campaign: conUtm.utm_campaign,
+      utm_content: conUtm.utm_content,
     };
   }
 
@@ -149,10 +156,16 @@ function determinarAtribucion(interacciones: InteraccionRaw[]): Atribucion {
   if (conMedio) {
     const medio =
       conMedio.medio_captacion || conMedio.medio_captacion_rastro || conMedio.canal_entrada_rastro!;
-    return { canal: clasificarCanal(medio), medio, utm_source: null, utm_campaign: null };
+    return {
+      canal: clasificarCanal(medio),
+      medio,
+      utm_source: null,
+      utm_campaign: null,
+      utm_content: conMedio.utm_content,
+    };
   }
 
-  return { canal: "Sin atribuir", medio: "sin datos", utm_source: null, utm_campaign: null };
+  return { canal: "Sin atribuir", medio: "sin datos", utm_source: null, utm_campaign: null, utm_content: null };
 }
 
 /* ---------- Normalización de nombres de proyecto ------------------------- */
@@ -212,7 +225,7 @@ async function fetchInteraccionesBatch(
 }
 
 /* ---------- Procesar un mes desde Sperant -------------------------------- */
-async function procesarMes(mes: number) {
+export async function procesarMes(mes: number) {
   const ventasRes = await fetch(`${SPERANT}/consultar_ventas_mes?mes=${mes}`);
   if (!ventasRes.ok) throw new Error(`Sperant ${ventasRes.status} para mes=${mes}`);
 
@@ -226,7 +239,10 @@ async function procesarMes(mes: number) {
     ),
   ];
 
-  const interacciones = await fetchInteraccionesBatch(dnis);
+  const [interacciones, mapaAnuncios] = await Promise.all([
+    fetchInteraccionesBatch(dnis),
+    obtenerMapaAnuncios(),
+  ]);
 
   const ventas = ventasRaw.map((v) => {
     const dni = String(v.documento_cliente_titular ?? "");
@@ -243,35 +259,16 @@ async function procesarMes(mes: number) {
       estado_contrato: String(v.estado_contrato ?? ""),
       vendedor: String(v.usuario_vendedor ?? ""),
       ...atrib,
+      ad_id: resolverAdId(atrib.utm_content, mapaAnuncios),
     };
   });
 
-  const grupoCanal = new Map<string, typeof ventas>();
-  for (const v of ventas) {
-    const arr = grupoCanal.get(v.canal) ?? [];
-    arr.push(v);
-    grupoCanal.set(v.canal, arr);
-  }
-
-  const por_canal = [...grupoCanal.entries()]
-    .map(([canal, items]) => {
-      const campMap = new Map<string, number>();
-      for (const v of items) {
-        const key = v.utm_campaign || v.medio;
-        campMap.set(key, (campMap.get(key) ?? 0) + 1);
-      }
-      const campanas = [...campMap.entries()]
-        .map(([nombre, total]) => ({ nombre, total }))
-        .sort((a, b) => b.total - a.total);
-      return { canal, total: items.length, campanas };
-    })
-    .sort((a, b) => b.total - a.total);
-
-  return { mes, total: ventas.length, por_canal, ventas };
+  return { mes, total: ventas.length, por_canal: agruparPorCanal(ventas), ventas };
 }
 
 /* ---------- Guardar en BD ------------------------------------------------ */
-async function guardarCache(mes: number, data: unknown) {
+export async function guardarCache(mes: number, data: unknown) {
+  await asegurarTabla();
   await query(
     `INSERT INTO ${TABLA} (mes, data, created_at)
      VALUES ($1, $2, NOW())
@@ -281,20 +278,33 @@ async function guardarCache(mes: number, data: unknown) {
 }
 
 /* ---------- Sync de un mes (background, no duplica) ---------------------- */
+// Último error por mes, para poder diagnosticar desde el endpoint de estado:
+// syncMesBackground es fire-and-forget y su error solo iría a los logs.
+const ultimoError = new Map<number, string>();
+
 export function syncMesBackground(mes: number) {
   if (syncing.has(mes)) return;
   syncing.add(mes);
+  ultimoError.delete(mes);
 
   procesarMes(mes)
     .then((data) => guardarCache(mes, data))
     .then(() => console.log(`[sync] mes ${mes} OK`))
-    .catch((e) => console.error(`[sync] mes ${mes} ERROR:`, e))
+    .catch((e) => {
+      const msg = e instanceof Error ? `${e.message}\n${e.stack ?? ""}` : String(e);
+      ultimoError.set(mes, msg);
+      console.error(`[sync] mes ${mes} ERROR:`, e);
+    })
     .finally(() => syncing.delete(mes));
 }
 
 /* ---------- Estado de sincronización en curso ---------------------------- */
 export function mesesSincronizando(): number[] {
   return [...syncing];
+}
+
+export function erroresSync(): Record<number, string> {
+  return Object.fromEntries(ultimoError);
 }
 
 /* ---------- Verificar y sincronizar meses faltantes ---------------------- */

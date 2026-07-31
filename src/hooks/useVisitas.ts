@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
 import type { Visita } from "@/types";
 
-// Contactos con estado visita_agendada. La fecha de la visita real solo
-// existe si la BD tiene fecha_visita; si no, se usa ultima_actividad
-// (momento en que el agente marcó la visita) como fecha de referencia.
+// Contactos con estado visita_agendada. fecha_visita es la fecha real
+// acordada con el lead (viene de la tabla `visitas`); ultima_actividad
+// solo se usa como respaldo para visitas antiguas que no la tienen, y en
+// esos casos la fecha mostrada es la de la conversación, no la de la visita.
 export function useVisitas() {
   return useQuery<Visita[]>({
     queryKey: ["visitas"],

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { syncMesBackground, mesesSincronizando } from "@/lib/ventas-sync";
+import { syncMesBackground, mesesSincronizando, erroresSync } from "@/lib/ventas-sync";
 
 export async function POST(req: NextRequest) {
   if (!req.cookies.get("menorca_session")?.value) {
@@ -19,5 +19,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  return NextResponse.json({ sincronizando: mesesSincronizando() });
+  return NextResponse.json({
+    sincronizando: mesesSincronizando(),
+    errores: erroresSync(),
+  });
 }

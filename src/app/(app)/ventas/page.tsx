@@ -9,7 +9,8 @@ import VentasStatTiles from "@/components/ventas/VentasStatTiles";
 import VentasPorCanal from "@/components/ventas/VentasPorCanal";
 import VentasTabla from "@/components/ventas/VentasTabla";
 import VentasComparativo from "@/components/ventas/VentasComparativo";
-import type { VentasHistoricoData, VentaAtribuida, ResumenCanal } from "@/types";
+import { agruparPorCanal } from "@/lib/ventas-agrupar";
+import type { VentasHistoricoData } from "@/types";
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -19,28 +20,6 @@ const MESES = [
 const mesActual = new Date().getMonth() + 1;
 
 type Vista = "mes" | "evolucion";
-
-function recalcularPorCanal(ventas: VentaAtribuida[]): ResumenCanal[] {
-  const grupoCanal = new Map<string, VentaAtribuida[]>();
-  for (const v of ventas) {
-    const arr = grupoCanal.get(v.canal) ?? [];
-    arr.push(v);
-    grupoCanal.set(v.canal, arr);
-  }
-  return [...grupoCanal.entries()]
-    .map(([canal, items]) => {
-      const campMap = new Map<string, number>();
-      for (const v of items) {
-        const key = v.utm_campaign || v.medio;
-        campMap.set(key, (campMap.get(key) ?? 0) + 1);
-      }
-      const campanas = [...campMap.entries()]
-        .map(([nombre, total]) => ({ nombre, total }))
-        .sort((a, b) => b.total - a.total);
-      return { canal, total: items.length, campanas };
-    })
-    .sort((a, b) => b.total - a.total);
-}
 
 function ChevronIcon() {
   return (
@@ -108,7 +87,7 @@ export default function VentasPage() {
     return {
       ...data,
       total: ventas.length,
-      por_canal: recalcularPorCanal(ventas),
+      por_canal: agruparPorCanal(ventas),
       ventas,
     };
   }, [data, proyecto]);
