@@ -198,55 +198,135 @@ export interface LeadFormularioWeb {
 // GET /api/ventas/historico — ventas del mes cruzadas con interacciones de Sperant
 export interface VentaAtribuida {
   documento: string;
+  // Llave 1:1 con la interacción "creación de proforma" que cerró esta venta
+  codigo_proforma: string;
   codigo_proyecto: number;
   nombre_proyecto: string;
   codigo_unidad: string;
+  tipo_unidad: string;
   precio_lista: number;
+  moneda: string;
   fecha_cierre: string;
   estado_contrato: string;
   vendedor: string;
+
+  // Origen: primera interacción del cliente hasta la fecha de la proforma.
+  // De dónde vino la venta. `canal` conserva el nombre por compatibilidad.
   canal: string;
-  medio: string;
+  medio: string | null;
+  fecha_origen: string | null;
+
+  // Cierre: el medio registrado en la interacción de la proforma. Quién la
+  // cerró. Difiere del origen en 54 de las 135 ventas de junio 2026.
+  canal_cierre: string;
+  medio_cierre: string | null;
+  fecha_proforma: string | null;
+  dias_ciclo: number | null;
+
   utm_source: string | null;
   utm_campaign: string | null;
   // Nivel de anuncio: Sperant lo manda como texto en utm_content. El ad_id se
   // resuelve cruzando ese nombre contra Meta (null si no hay token o no cruza).
-  // Opcionales: las ventas cacheadas antes de este cambio no los traen.
-  utm_content?: string | null;
-  ad_id?: string | null;
+  utm_content: string | null;
+  // false cuando los UTM salen de una interacción posterior a la del origen
+  utm_del_origen: boolean;
+  // true cuando el anuncio corresponde a un proyecto distinto al vendido: el
+  // cliente entró por un aviso de un proyecto y terminó comprando otro
+  utm_otro_proyecto: boolean;
+  ad_id: string | null;
+  // true si hay varios anuncios en Meta con el mismo nombre: el cruce es por
+  // nombre y el ad_id elegido puede no ser el correcto
+  ad_ambiguo: boolean;
+  // Nombre real de la campaña en Meta, resuelto desde el ad_id. El utm_campaign
+  // de Sperant no corresponde a ninguna entidad de la cuenta publicitaria.
+  campana_meta: string | null;
+}
+
+/**
+ * Los montos no se pueden sumar en un solo número: hay contratos en USD y en
+ * PEN, y no existe un tipo de cambio en la data. Se acumulan por moneda y la UI
+ * los muestra por separado en vez de inventar una conversión.
+ */
+export type MontoPorMoneda = Record<string, number>;
+
+/* ---------- Gasto de Meta ------------------------------------------------ */
+export interface MetricasAnuncio {
+  gasto: number;
+  impresiones: number;
+  leads: number;
+  /** null cuando no hubo leads: dividir daría infinito */
+  cpl: number | null;
+}
+
+export interface MetricasMeta {
+  /** ad_id -> métricas del período */
+  porAnuncio: Record<string, MetricasAnuncio>;
+  /**
+   * Total de la cuenta, incluidos los anuncios que no vendieron. Sin esto el
+   * costo por venta sale falsamente bajo, porque solo se dividiría el gasto de
+   * los anuncios que sí cerraron.
+   */
+  totalCuenta: MetricasAnuncio;
+  desde: string;
+  hasta: string;
+  /** false cuando Meta falló y los números vienen de cache viejo o vacío */
+  completo: boolean;
+}
+
+/** Gasto agregado de un grupo, con el costo por venta ya calculado. */
+export interface GastoGrupo {
+  gasto: number;
+  leads: number;
+  cpl: number | null;
+  /** null cuando el grupo no tiene ningún anuncio con gasto conocido */
+  costoPorVenta: number | null;
+  /** cuántos anuncios del grupo tienen gasto conocido */
+  anunciosConGasto: number;
 }
 
 // Anuncio dentro de una campaña. `ad_id` no nulo permite el link directo a
-// Ads Manager; si es null solo se puede buscar por nombre.
+// Ads Manager; si es null solo queda el nombre en texto.
 export interface ResumenAnuncio {
   nombre: string;
   total: number;
-  monto: number;
+  montos: MontoPorMoneda;
   ad_id: string | null;
+  ad_ambiguo: boolean;
+  // cuántas de las ventas del grupo entraron por un aviso de otro proyecto
+  otroProyecto: number;
+  // gasto del anuncio en Meta; null si no hay ad_id o si Meta no lo devolvió
+  metricas: MetricasAnuncio | null;
 }
 
-// `monto` y `anuncios` son opcionales porque el cache en Postgres puede tener
-// filas guardadas antes de que existieran esos campos: hasta el siguiente sync
-// llegan undefined y la UI debe tolerarlo.
 export interface ResumenCampana {
   nombre: string;
   total: number;
-  monto?: number;
-  anuncios?: ResumenAnuncio[];
+  montos: MontoPorMoneda;
+  // true cuando el nombre viene de Meta; false cuando es el utm_campaign de
+  // Sperant, que no corresponde a ninguna campaña real
+  esCampanaMeta: boolean;
+  gasto: GastoGrupo | null;
+  anuncios: ResumenAnuncio[];
 }
 
 export interface ResumenCanal {
   canal: string;
   total: number;
-  monto?: number;
+  montos: MontoPorMoneda;
+  gasto: GastoGrupo | null;
   campanas: ResumenCampana[];
 }
 
 export interface VentasHistoricoData {
+  // Forma del JSON cacheado. Un mes con versión vieja se re-sincroniza solo.
+  version?: number;
   mes: number;
   total: number;
   por_canal: ResumenCanal[];
   ventas: VentaAtribuida[];
+  // Viaja en el JSON para que la UI pueda reagrupar al filtrar por proyecto o
+  // cambiar de origen a cierre sin volver a pedirle nada al servidor
+  metricas_meta?: MetricasMeta;
 }
 
 // Configuración de badge por estado

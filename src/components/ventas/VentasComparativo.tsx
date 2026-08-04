@@ -8,28 +8,16 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Cell,
 } from "recharts";
 import ChartCard from "@/components/dashboard/ChartCard";
 import type { VentasHistoricoData } from "@/types";
 import { GRID, MUTED, ACCENT } from "@/components/dashboard/chartTheme";
+import { colorCanal } from "@/lib/canal-estilo";
 
 const MESES_CORTO = [
   "Ene", "Feb", "Mar", "Abr", "May", "Jun",
   "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
 ];
-
-const CANAL_COLOR: Record<string, string> = {
-  "Meta Ads": "#2a78d6",
-  "Gestión directa": "#94a3b8",
-  Referido: "#eda100",
-  WhatsApp: "#00a884",
-  Web: "#7c3aed",
-  TikTok: "#ef4444",
-  Google: "#eab308",
-  Otro: "#cbd5e1",
-  "Sin atribuir": "#e2e8f0",
-};
 
 interface Props {
   datos: VentasHistoricoData[];
@@ -165,7 +153,7 @@ export default function VentasComparativo({
                           className="h-1.5 rounded-full transition-all"
                           style={{
                             width: `${pct}%`,
-                            backgroundColor: CANAL_COLOR[c.canal] ?? "#94a3b8",
+                            backgroundColor: colorCanal(c.canal),
                           }}
                         />
                       </div>

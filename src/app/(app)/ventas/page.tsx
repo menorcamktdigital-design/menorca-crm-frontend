@@ -33,6 +33,7 @@ export default function VentasPage() {
   const [mes, setMes] = useState(mesActual);
   const [vista, setVista] = useState<Vista>("mes");
   const [proyecto, setProyecto] = useState("todos");
+  const [soloLotes, setSoloLotes] = useState(false);
   const { data, isLoading, isError } = useVentasHistorico(mes);
   const comparativo = useVentasComparativo(mesActual);
   const queryClient = useQueryClient();
@@ -82,15 +83,20 @@ export default function VentasPage() {
 
   const filtrado = useMemo((): VentasHistoricoData | undefined => {
     if (!data) return undefined;
-    if (proyecto === "todos") return data;
-    const ventas = data.ventas.filter((v) => v.nombre_proyecto === proyecto);
+    // Se reagrupa siempre, no solo al filtrar: el modo origen/cierre cambia
+    // por qué canal se agrupa cada venta.
+    const ventas = data.ventas.filter(
+      (v) =>
+        (proyecto === "todos" || v.nombre_proyecto === proyecto) &&
+        (!soloLotes || v.tipo_unidad === "lote")
+    );
     return {
       ...data,
       total: ventas.length,
-      por_canal: agruparPorCanal(ventas),
+      por_canal: agruparPorCanal(ventas, "origen", data.metricas_meta),
       ventas,
     };
-  }, [data, proyecto]);
+  }, [data, proyecto, soloLotes]);
 
   const handleMes = (m: number) => {
     setMes(m);
@@ -114,7 +120,7 @@ export default function VentasPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900">Ventas</h1>
             <p className="text-sm text-gray-500">
-              Atribución de canal (first touch)
+              Cruce Sperant por código de proforma
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -184,6 +190,18 @@ export default function VentasPage() {
               <ChevronIcon />
             </div>
           )}
+
+          {vista === "mes" && (
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={soloLotes}
+                onChange={(e) => setSoloLotes(e.target.checked)}
+                className="h-4 w-4 accent-[#00a884]"
+              />
+              Solo lotes
+            </label>
+          )}
         </div>
 
         {/* Vista: Por mes */}
@@ -196,6 +214,7 @@ export default function VentasPage() {
                 canales={filtrado?.por_canal ?? []}
                 cargando={isLoading}
                 error={isError}
+                metricas={data?.metricas_meta}
               />
             </div>
 

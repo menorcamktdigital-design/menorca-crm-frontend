@@ -32,14 +32,36 @@ function normalizar(nombre: string): string {
     .replace(/\s+/g, " ");
 }
 
-let cache: { mapa: Map<string, string>; ts: number } | null = null;
+/**
+ * Lo que se sabe de un anuncio de Meta a partir de su nombre.
+ *
+ * `campana` es el nombre real de la campaña en Meta. Hace falta porque el
+ * utm_campaign que guarda Sperant no corresponde a ninguna entidad de la
+ * cuenta: por ejemplo "AON_SAP_Capi_Pachacamac_Terreno_Form_Clientes
+ * Potenciales_10SEP25" no existe como campaña, conjunto ni anuncio, mientras
+ * que la campaña real de ese anuncio es "SAP_FORM_PACHACAMAC_VERDE_CAPI".
+ */
+export interface AnuncioMeta {
+  ad_id: string;
+  campana: string | null;
+  /**
+   * true cuando hay más de un anuncio con el mismo nombre normalizado. El
+   * cruce es por nombre, no por ID, y 932 de los 2,371 nombres de la cuenta
+   * apuntan a más de un anuncio (3,170 de 4,609 anuncios, hasta 11 con el
+   * mismo nombre). En esos casos el ad_id elegido puede no ser el correcto.
+   */
+  ambiguo: boolean;
+}
+
+let cache: { mapa: Map<string, AnuncioMeta>; ts: number } | null = null;
 
 /** Descarga todos los anuncios de la cuenta paginando el edge /ads. */
-async function descargarAnuncios(): Promise<Map<string, string>> {
-  const mapa = new Map<string, string>();
+async function descargarAnuncios(): Promise<Map<string, AnuncioMeta>> {
+  const mapa = new Map<string, AnuncioMeta>();
   let url =
     `${META_API}/act_${AD_ACCOUNT_ID}/ads` +
-    `?fields=id,name&limit=500&access_token=${encodeURIComponent(TOKEN)}`;
+    `?fields=id,name,campaign{id,name}&limit=500` +
+    `&access_token=${encodeURIComponent(TOKEN)}`;
 
   // La cuenta puede tener miles de anuncios; el tope evita un bucle infinito
   // si la API devolviera un cursor que no avanza.
@@ -49,15 +71,25 @@ async function descargarAnuncios(): Promise<Map<string, string>> {
       throw new Error(`Meta respondió ${res.status} al listar anuncios`);
     }
     const json = (await res.json()) as {
-      data?: { id: string; name: string }[];
+      data?: { id: string; name: string; campaign?: { id: string; name: string } }[];
       paging?: { next?: string };
     };
 
     for (const ad of json.data ?? []) {
       if (!ad.name) continue;
       const clave = normalizar(ad.name);
-      // Ante duplicados por " - Copia" se conserva el primero.
-      if (!mapa.has(clave)) mapa.set(clave, ad.id);
+      const previo = mapa.get(clave);
+      if (previo) {
+        // Ante duplicados se conserva el primero, pero queda marcado para que
+        // la UI no presente el link como si fuera exacto.
+        previo.ambiguo = true;
+        continue;
+      }
+      mapa.set(clave, {
+        ad_id: ad.id,
+        campana: ad.campaign?.name ?? null,
+        ambiguo: false,
+      });
     }
 
     url = json.paging?.next ?? "";
@@ -71,7 +103,7 @@ async function descargarAnuncios(): Promise<Map<string, string>> {
  * Si Meta falla, se devuelve un mapa vacío: el sync continúa sin ad_id en
  * lugar de romperse, porque el dato de ventas es lo crítico.
  */
-export async function obtenerMapaAnuncios(): Promise<Map<string, string>> {
+export async function obtenerMapaAnuncios(): Promise<Map<string, AnuncioMeta>> {
   if (!metaConfigurado()) return new Map();
 
   if (cache && Date.now() - cache.ts < CACHE_MS) return cache.mapa;
@@ -79,7 +111,10 @@ export async function obtenerMapaAnuncios(): Promise<Map<string, string>> {
   try {
     const mapa = await descargarAnuncios();
     cache = { mapa, ts: Date.now() };
-    console.log(`[meta] ${mapa.size} anuncios indexados`);
+    const ambiguos = [...mapa.values()].filter((a) => a.ambiguo).length;
+    console.log(
+      `[meta] ${mapa.size} nombres de anuncio indexados, ${ambiguos} ambiguos`
+    );
     return mapa;
   } catch (e) {
     console.error("[meta] No se pudo indexar anuncios:", e);
@@ -87,11 +122,11 @@ export async function obtenerMapaAnuncios(): Promise<Map<string, string>> {
   }
 }
 
-/** Busca el ad_id de un nombre de anuncio. null si no cruza. */
-export function resolverAdId(
+/** Busca el anuncio de Meta por su nombre. null si no cruza. */
+export function resolverAnuncio(
   nombreAnuncio: string | null,
-  mapa: Map<string, string>
-): string | null {
+  mapa: Map<string, AnuncioMeta>
+): AnuncioMeta | null {
   if (!nombreAnuncio) return null;
   return mapa.get(normalizar(nombreAnuncio)) ?? null;
 }

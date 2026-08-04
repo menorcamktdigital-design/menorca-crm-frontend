@@ -1,11 +1,32 @@
 import { query } from "@/lib/db";
-import { obtenerMapaAnuncios, resolverAdId } from "@/lib/meta-ads";
+import { obtenerMapaAnuncios, resolverAnuncio } from "@/lib/meta-ads";
+import { obtenerMetricasMeta } from "@/lib/meta-insights";
 import { agruparPorCanal } from "@/lib/ventas-agrupar";
+import {
+  CANALES_CON_ANUNCIOS,
+  clasificarCanal,
+  mediosSinClasificar,
+} from "@/lib/canales";
+import type { VentaAtribuida } from "@/types";
 
 const SPERANT = "https://apirest.menorca.services/api";
 const CONCURRENCY = 15;
 const TABLA = "ventas_historico_cache";
 const REFRESH_MS = 24 * 60 * 60_000; // 1 vez al día para mes actual
+
+/**
+ * Versión de la forma del JSON cacheado. Subirla invalida lo guardado: un mes
+ * con versión vieja se vuelve a sincronizar en cuanto alguien lo abre, en vez
+ * de pintar campos que ya no existen.
+ * 2 = atribución por codigo_proforma, canal de origen y de cierre separados.
+ * 3 = el origen se acota a las interacciones del proyecto que se vendió.
+ * 4 = campaña real de Meta resuelta desde el ad_id.
+ * 5 = los UTM se buscan fuera del proyecto cuando no hay dentro.
+ * 6 = gasto, leads y CPL de Meta por anuncio.
+ * 7 = el gasto se pide del mes de la venta, no del año acumulado.
+ * 8 = campaña y anuncio solo en canales de anuncios.
+ */
+const VERSION = 8;
 
 /* ---------- Estado en memoria (evita syncs duplicados) ------------------- */
 const syncing = new Set<number>();
@@ -54,118 +75,187 @@ const PROYECTOS_MAP: Record<number, string> = {
   73: "Brisas de Ventanilla",
 };
 
-/* ---------- Clasificación de canal --------------------------------------- */
-function clasificarCanal(medio: string): string {
-  const m = medio.toLowerCase();
-  if (m.includes("facebook") || m === "fblead" || m === "social") return "Meta Ads";
-  if (m.includes("tiktok")) return "TikTok";
-  if (m.includes("whatsapp")) return "WhatsApp";
-  if (m.includes("pag.web") || m.includes("menorca_web") || m === "organic") return "Web";
-  if (m.includes("referido")) return "Referido";
-  if (
-    m.includes("oficina") ||
-    m.includes("proactiva") ||
-    m.includes("gestión") ||
-    m.includes("centro comercial") ||
-    m.includes("agente inmobiliario")
-  )
-    return "Gestión directa";
-  if (m.includes("google")) return "Google";
-  return "Otro";
-}
-
 /* ---------- Tipos -------------------------------------------------------- */
 interface InteraccionRaw {
+  id: number;
   tipo_interaccion: string;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
+  utm_content: string | null;
   canal_entrada: string | null;
   medio_captacion: string | null;
   canal_entrada_rastro: string | null;
   medio_captacion_rastro: string | null;
+  codigo_proforma: string | null;
   fecha_creacion: string;
   codigo_proyecto: string | null;
   nombre_proyecto: string | null;
-  utm_content: string | null;
 }
 
+/**
+ * Sperant reparte el mismo dato entre cuatro campos y ninguno está siempre
+ * lleno. Los `_rastro` son los que Sperant arrastra desde el registro del
+ * cliente, así que rellenan cuando la interacción puntual viene vacía.
+ */
+function medioDe(i: InteraccionRaw): string | null {
+  return (
+    i.medio_captacion ||
+    i.medio_captacion_rastro ||
+    i.canal_entrada ||
+    i.canal_entrada_rastro ||
+    null
+  );
+}
+
+const tiempo = (iso: string) => new Date(iso).getTime();
+
+/* ---------- Atribución --------------------------------------------------- */
+/**
+ * Cada venta trae `codigo_proforma` y existe exactamente una interacción
+ * ("creación de proforma") con ese mismo código: es la llave 1:1 entre la venta
+ * y el momento en que se cerró. Medido sobre junio 2026, 132 de 135 ventas
+ * cruzan y ninguna cruza con más de una.
+ *
+ * Eso permite responder dos preguntas distintas, que antes se mezclaban en un
+ * solo campo:
+ *
+ *   origen  -> primera interacción del cliente hasta la fecha de esa proforma.
+ *              De dónde vino. Es lo que hay que mirar para repartir presupuesto.
+ *   cierre  -> el medio registrado en la interacción de la proforma.
+ *              Quién lo cerró. En junio difiere del origen en 54 de 135 ventas.
+ *
+ * La regla anterior ("si existe una interacción de facebook con utm_campaign,
+ * la venta es de Meta") no era ninguna de las dos: tomaba interacciones
+ * posteriores al origen, incluso años después, y le asignaba a Meta ventas que
+ * habían entrado por TikTok, referido o gestión directa.
+ */
 interface Atribucion {
   canal: string;
-  medio: string;
+  medio: string | null;
+  fecha_origen: string | null;
+
+  canal_cierre: string;
+  medio_cierre: string | null;
+  fecha_proforma: string | null;
+  dias_ciclo: number | null;
+
   utm_source: string | null;
   utm_campaign: string | null;
   utm_content: string | null;
+  /** false cuando los UTM salen de una interacción posterior a la primera. */
+  utm_del_origen: boolean;
+  /** true cuando el anuncio corresponde a un proyecto distinto al vendido. */
+  utm_otro_proyecto: boolean;
 }
 
-/* ---------- Atribución (first touch) ------------------------------------- */
-function determinarAtribucion(interacciones: InteraccionRaw[]): Atribucion {
-  if (!interacciones.length)
-    return { canal: "Sin atribuir", medio: "sin datos", utm_source: null, utm_campaign: null, utm_content: null };
+const SIN_ATRIBUCION: Atribucion = {
+  canal: "Sin atribuir",
+  medio: null,
+  fecha_origen: null,
+  canal_cierre: "Sin cruce",
+  medio_cierre: null,
+  fecha_proforma: null,
+  dias_ciclo: null,
+  utm_source: null,
+  utm_campaign: null,
+  utm_content: null,
+  utm_del_origen: false,
+  utm_otro_proyecto: false,
+};
 
-  const sorted = [...interacciones].sort(
-    (a, b) => new Date(a.fecha_creacion).getTime() - new Date(b.fecha_creacion).getTime()
+function determinarAtribucion(
+  interacciones: InteraccionRaw[],
+  codigoProforma: string,
+  fechaCierre: string,
+  codigoProyecto: number
+): Atribucion {
+  if (!interacciones.length) return SIN_ATRIBUCION;
+
+  const orden = [...interacciones].sort(
+    (a, b) => tiempo(a.fecha_creacion) - tiempo(b.fecha_creacion)
   );
 
-  const fbConCampana = sorted.find(
-    (i) => i.tipo_interaccion === "facebook" && i.utm_campaign
+  const proforma = codigoProforma
+    ? orden.find((i) => i.codigo_proforma && i.codigo_proforma === codigoProforma)
+    : undefined;
+
+  // Sin proforma cruzada se usa la fecha de cierre como tope. Es peor corte
+  // (la proforma se crea antes del cierre) pero evita contar como origen algo
+  // que pasó después de la venta.
+  const tope = proforma ? tiempo(proforma.fecha_creacion) : tiempo(fechaCierre);
+  const previas = orden.filter((i) => tiempo(i.fecha_creacion) <= tope);
+
+  // Si el corte deja todo fuera (fechas inconsistentes en Sperant) se cae a la
+  // línea completa en vez de devolver "sin atribuir".
+  const ventana = previas.length ? previas : orden;
+
+  // El origen se acota al proyecto que se vendió. Un cliente que ya compró
+  // antes arrastra interacciones de hace años que no tienen nada que ver con
+  // esta compra: tomando su primera interacción histórica, 29 de las 135
+  // ventas de junio 2026 quedaban atribuidas a un contacto de más de 2 años de
+  // antigüedad (hasta 12 años). Acotando al proyecto bajan a 11 y la mediana
+  // del ciclo pasa de 15 a 7 días, sin perder ni una venta: las 133 que cruzan
+  // proforma tienen al menos una interacción de su propio proyecto.
+  const delProyecto = ventana.filter(
+    (i) => Number(i.codigo_proyecto) === codigoProyecto
   );
-  if (fbConCampana) {
-    return {
-      canal: "Meta Ads",
-      medio: "facebook",
-      utm_source: fbConCampana.utm_source,
-      utm_campaign: fbConCampana.utm_campaign,
-      utm_content: fbConCampana.utm_content,
-    };
-  }
+  const ventanaOrigen = delProyecto.length ? delProyecto : ventana;
 
-  const creacion = sorted.find((i) => i.tipo_interaccion === "creación de cliente");
-  if (creacion) {
-    const medio =
-      creacion.medio_captacion ||
-      creacion.medio_captacion_rastro ||
-      creacion.canal_entrada ||
-      creacion.canal_entrada_rastro;
-    if (medio) {
-      return {
-        canal: clasificarCanal(medio),
-        medio,
-        utm_source: creacion.utm_source,
-        utm_campaign: creacion.utm_campaign,
-        utm_content: creacion.utm_content,
-      };
-    }
-  }
+  const origen = ventanaOrigen.find((i) => medioDe(i)) ?? ventanaOrigen[0];
+  const medio = medioDe(origen);
+  const canal = clasificarCanal(medio);
 
-  const conUtm = sorted.find((i) => i.utm_source);
-  if (conUtm) {
-    const medio = conUtm.utm_medium || conUtm.medio_captacion || conUtm.utm_source!;
-    return {
-      canal: clasificarCanal(medio),
-      medio,
-      utm_source: conUtm.utm_source,
-      utm_campaign: conUtm.utm_campaign,
-      utm_content: conUtm.utm_content,
-    };
-  }
+  // Los UTM se buscan más allá del proyecto, al revés que el canal.
+  //
+  // Un cliente entra por un anuncio de un proyecto y termina comprando otro:
+  // el anuncio igual fue el que lo trajo, así que esconderlo pierde
+  // información real. De las 154 ventas con origen Meta que quedaban sin
+  // campaña ni anuncio, 52 tenían UTM de otro proyecto y 5 del mismo proyecto
+  // pero fuera del corte temporal. Las otras 97 no tienen UTM en ninguna
+  // interacción: ahí Sperant sencillamente no registró nada.
+  //
+  // El canal sí se queda acotado al proyecto, porque para repartir presupuesto
+  // importa qué trajo esta compra, no la anterior.
+  const tieneUtm = (i: InteraccionRaw) =>
+    Boolean(i.utm_campaign || i.utm_content || i.utm_source);
 
-  const conMedio = sorted.find(
-    (i) => i.medio_captacion || i.medio_captacion_rastro || i.canal_entrada_rastro
-  );
-  if (conMedio) {
-    const medio =
-      conMedio.medio_captacion || conMedio.medio_captacion_rastro || conMedio.canal_entrada_rastro!;
-    return {
-      canal: clasificarCanal(medio),
-      medio,
-      utm_source: null,
-      utm_campaign: null,
-      utm_content: conMedio.utm_content,
-    };
-  }
+  // La búsqueda fuera del proyecto solo aplica si la venta entró por un canal
+  // de anuncios. Un cliente que entró por WhatsApp puede tener un utm_content
+  // de Meta suelto en su historial de hace meses; colgarle ese anuncio hacía
+  // aparecer campañas y avisos de Meta debajo del canal WhatsApp, como si el
+  // aviso hubiera generado esa venta.
+  const conUtm = CANALES_CON_ANUNCIOS.has(canal)
+    ? (ventanaOrigen.find(tieneUtm) ?? ventana.find(tieneUtm) ?? orden.find(tieneUtm))
+    : ventanaOrigen.find(tieneUtm);
 
-  return { canal: "Sin atribuir", medio: "sin datos", utm_source: null, utm_campaign: null, utm_content: null };
+  const fechaProforma = proforma?.fecha_creacion ?? null;
+  const diasCiclo =
+    fechaProforma && origen
+      ? Math.max(
+          0,
+          Math.round(
+            (tiempo(fechaProforma) - tiempo(origen.fecha_creacion)) / 86_400_000
+          )
+        )
+      : null;
+
+  return {
+    canal,
+    medio,
+    fecha_origen: origen?.fecha_creacion ?? null,
+
+    canal_cierre: proforma ? clasificarCanal(medioDe(proforma)) : "Sin cruce",
+    medio_cierre: proforma ? medioDe(proforma) : null,
+    fecha_proforma: fechaProforma,
+    dias_ciclo: diasCiclo,
+
+    utm_source: conUtm?.utm_source ?? null,
+    utm_campaign: conUtm?.utm_campaign ?? null,
+    utm_content: conUtm?.utm_content ?? null,
+    utm_del_origen: conUtm !== undefined && conUtm === origen,
+    utm_otro_proyecto: conUtm !== undefined && !ventanaOrigen.includes(conUtm),
+  };
 }
 
 /* ---------- Normalización de nombres de proyecto ------------------------- */
@@ -219,9 +309,25 @@ async function fetchInteraccionesBatch(
           .catch(() => [])
       )
     );
-    batch.forEach((dni, idx) => mapa.set(dni, results[idx] ?? []));
+    batch.forEach((dni, idx) =>
+      mapa.set(dni, Array.isArray(results[idx]) ? results[idx] : [])
+    );
   }
   return mapa;
+}
+
+/**
+ * El lead puede haber entrado con el DNI del cónyuge y la venta figurar a
+ * nombre del otro: 25 de las 135 ventas de junio tienen copropietario. Si solo
+ * se mira al titular, esas quedan sin origen.
+ */
+function dnisDeVenta(v: Record<string, unknown>): string[] {
+  const titular = String(v.documento_cliente_titular ?? "").trim();
+  const copro = String(v.documento_copropietarios ?? "")
+    .split(/[,;/\s]+/)
+    .map((d) => d.trim())
+    .filter(Boolean);
+  return [...new Set([titular, ...copro].filter((d) => d.length > 0))];
 }
 
 /* ---------- Procesar un mes desde Sperant -------------------------------- */
@@ -231,39 +337,61 @@ export async function procesarMes(mes: number) {
 
   const ventasRaw: Record<string, unknown>[] = await ventasRes.json();
 
-  const dnis = [
-    ...new Set(
-      ventasRaw
-        .map((v) => String(v.documento_cliente_titular ?? ""))
-        .filter((d) => d.length > 0)
-    ),
-  ];
+  const dnis = [...new Set(ventasRaw.flatMap(dnisDeVenta))];
 
-  const [interacciones, mapaAnuncios] = await Promise.all([
+  const [interacciones, mapaAnuncios, metricasMeta] = await Promise.all([
     fetchInteraccionesBatch(dnis),
     obtenerMapaAnuncios(),
+    obtenerMetricasMeta(mes),
   ]);
 
-  const ventas = ventasRaw.map((v) => {
-    const dni = String(v.documento_cliente_titular ?? "");
-    const ints = interacciones.get(dni) ?? [];
-    const atrib = determinarAtribucion(ints);
+  const ventas: VentaAtribuida[] = ventasRaw.map((v) => {
+    // Las interacciones del titular y las del copropietario son la misma
+    // historia comercial; se unen y se deduplican por id.
+    const porId = new Map<number, InteraccionRaw>();
+    for (const dni of dnisDeVenta(v)) {
+      for (const i of interacciones.get(dni) ?? []) porId.set(i.id, i);
+    }
+    const ints = [...porId.values()];
+
     const codProy = Number(v.codigo_proyecto) || 0;
+    const codigoProforma = String(v.codigo_proforma ?? "");
+    const fechaCierre = String(v.fecha_cierre ?? "");
+    const atrib = determinarAtribucion(ints, codigoProforma, fechaCierre, codProy);
+    const anuncio = resolverAnuncio(atrib.utm_content, mapaAnuncios);
+
     return {
-      documento: dni,
+      documento: String(v.documento_cliente_titular ?? ""),
+      codigo_proforma: codigoProforma,
       codigo_proyecto: codProy,
       nombre_proyecto: resolverNombreProyecto(codProy, ints),
       codigo_unidad: String(v.codigo_unidad ?? ""),
+      tipo_unidad: String(v.tipo_unidad_principal ?? ""),
       precio_lista: Number(v.precio_lista) || 0,
-      fecha_cierre: String(v.fecha_cierre ?? ""),
+      moneda: String(v.moneda_contrato ?? "USD"),
+      fecha_cierre: fechaCierre,
       estado_contrato: String(v.estado_contrato ?? ""),
       vendedor: String(v.usuario_vendedor ?? ""),
       ...atrib,
-      ad_id: resolverAdId(atrib.utm_content, mapaAnuncios),
+      ad_id: anuncio?.ad_id ?? null,
+      ad_ambiguo: anuncio?.ambiguo ?? false,
+      campana_meta: anuncio?.campana ?? null,
     };
   });
 
-  return { mes, total: ventas.length, por_canal: agruparPorCanal(ventas), ventas };
+  const sinClasificar = mediosSinClasificar();
+  if (sinClasificar.length) {
+    console.warn(`[sync] medios sin clasificar: ${sinClasificar.join(", ")}`);
+  }
+
+  return {
+    version: VERSION,
+    mes,
+    total: ventas.length,
+    por_canal: agruparPorCanal(ventas, "origen", metricasMeta),
+    ventas,
+    metricas_meta: metricasMeta,
+  };
 }
 
 /* ---------- Guardar en BD ------------------------------------------------ */
@@ -319,21 +447,26 @@ export async function inicializarSync() {
 
     const mesActual = new Date().getMonth() + 1;
 
-    const rows = await query<{ mes: number; created_at: Date }>(
-      `SELECT mes, created_at FROM ${TABLA}`
+    const rows = await query<{ mes: number; data: { version?: number }; created_at: Date }>(
+      `SELECT mes, data, created_at FROM ${TABLA}`
     );
-    const cached = new Map(rows.map((r) => [r.mes, new Date(r.created_at)]));
+    const cached = new Map(
+      rows.map((r) => [r.mes, { fecha: new Date(r.created_at), version: r.data?.version ?? 1 }])
+    );
 
-    // Meses pasados sin cache → sincronizar
+    // Meses pasados sin cache, o cacheados con una forma vieja del JSON
     for (let m = 1; m < mesActual; m++) {
-      if (!cached.has(m)) {
-        syncMesBackground(m);
-      }
+      const c = cached.get(m);
+      if (!c || c.version !== VERSION) syncMesBackground(m);
     }
 
-    // Mes actual: sync si no existe o si tiene más de 24h
-    const cachedActual = cached.get(mesActual);
-    if (!cachedActual || Date.now() - cachedActual.getTime() > REFRESH_MS) {
+    // Mes actual: sync si no existe, si cambió la forma, o si tiene más de 24h
+    const actual = cached.get(mesActual);
+    if (
+      !actual ||
+      actual.version !== VERSION ||
+      Date.now() - actual.fecha.getTime() > REFRESH_MS
+    ) {
       syncMesBackground(mesActual);
     }
   } catch (e) {
@@ -345,11 +478,28 @@ export async function inicializarSync() {
 /* ---------- Leer de BD --------------------------------------------------- */
 export async function leerCacheMes(mes: number) {
   await asegurarTabla();
-  const rows = await query<{ data: unknown; created_at: Date }>(
-    `SELECT data, created_at FROM ${TABLA} WHERE mes = $1`,
-    [mes]
-  );
+  const rows = await query<{
+    data: { version?: number; metricas_meta?: { completo?: boolean } };
+    created_at: Date;
+  }>(`SELECT data, created_at FROM ${TABLA} WHERE mes = $1`, [mes]);
   if (rows.length === 0) return null;
+
+  const data = rows[0].data;
+
+  // Forma vieja del JSON: se descarta y se pide de nuevo, porque a la UI le
+  // faltarían canal_cierre, moneda y tipo_unidad.
+  if ((data?.version ?? 1) !== VERSION) {
+    syncMesBackground(mes);
+    return null;
+  }
+
+  // Meta falló durante el sync (típicamente por límite de peticiones) y el mes
+  // quedó guardado sin gasto. Se devuelve igual, porque las ventas sí están,
+  // pero se reintenta en segundo plano para que no se congele en cero.
+  if (data?.metricas_meta && data.metricas_meta.completo === false) {
+    syncMesBackground(mes);
+    return data;
+  }
 
   // Si es mes actual y tiene más de 24h, refrescar en background
   const mesActual = new Date().getMonth() + 1;
@@ -360,5 +510,5 @@ export async function leerCacheMes(mes: number) {
     }
   }
 
-  return rows[0].data;
+  return data;
 }
