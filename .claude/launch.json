@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "crm-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "name": "crm-local",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "CRM_API_URL=http://localhost:5000/api/v1 CRM_API_TOKEN=menorca-crm-2026 npm run dev"],
       "port": 3000
     }
   ]

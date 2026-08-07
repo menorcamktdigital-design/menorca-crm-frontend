@@ -45,6 +45,19 @@ const ITEMS = [
     ),
   },
   {
+    href: "/funnel",
+    label: "Funnel",
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3.75 4.5h16.5L14.25 12v6.75l-4.5 2.25V12L3.75 4.5Z"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/conversaciones",
     label: "Conversaciones",
     icon: (
